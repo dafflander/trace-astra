@@ -1,0 +1,16 @@
+# Draft: use with a repository rooted at trace-engine, after source/license audit.
+services:
+  - type: web
+    name: trace-astra-carta
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-hosting.txt
+    startCommand: gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 1 --timeout 90
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.16
+      - key: TRACE_PUBLIC_ORIGIN
+        sync: false
+      - key: TRACE_SOURCE_URL
+        sync: false
