@@ -12,14 +12,26 @@ def application(environ,start_response):
     source=os.environ.get('TRACE_SOURCE_URL','')
     valid=lambda value: urlparse(value).scheme=='https' and bool(urlparse(value).netloc)
     headers=[('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),('Referrer-Policy','no-referrer')]
+    browser_origin=environ.get('HTTP_ORIGIN')
+    allowed=(origin,'https://traceastra.com')
+    if browser_origin in allowed:
+        headers.extend([('Access-Control-Allow-Origin',browser_origin),('Vary','Origin')])
     def reply(code,data,kind='application/json'):
         start_response(str(code)+' '+HTTPStatus(code).phrase,headers+[('Content-Type',kind),('Content-Length',str(len(data)))])
         return [data]
     # Fail closed until exact origin and source offer are configured.
     if not valid(origin) or not valid(source):
         return reply(503,b'{"error":"Deployment configuration is incomplete."}')
+    commit=os.environ.get('RENDER_GIT_COMMIT','')
+    if len(commit)==40 and all(c in '0123456789abcdef' for c in commit):
+        source='https://github.com/dafflander/trace-astra/tree/'+commit
     path=environ.get('PATH_INFO','/')
     method=environ.get('REQUEST_METHOD','GET')
+    if method=='OPTIONS':
+        if browser_origin not in allowed or path not in ('/api/natal','/api/natal/pdf','/api/timeline'):
+            return reply(403,b'{}')
+        headers.extend([('Access-Control-Allow-Methods','POST'),('Access-Control-Allow-Headers','Content-Type'),('Access-Control-Max-Age','600')])
+        return reply(204,b'')
     if path=='/healthz' and method=='GET':
         return reply(200,b'{"status":"ok","storage":false}')
     if path=='/source' and method=='GET':
@@ -30,7 +42,7 @@ def application(environ,start_response):
         return reply(415,b'{"error":"Expected application/json"}')
     h=Handler.__new__(Handler)
     h.path=path
-    h.allowed_origins=(origin,) # browsers must send the configured same origin
+    h.allowed_origins=allowed # browsers must send the configured same origin
     h.headers={'Content-Length':environ.get('CONTENT_LENGTH','0'),'Origin':environ.get('HTTP_ORIGIN')}
     h.rfile=environ['wsgi.input']
     response=[]

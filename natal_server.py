@@ -23,14 +23,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
     def do_GET(self):
-        files={'/':'index.html','/app.js':'app.js','/style.css':'style.css'}
+        if self.path == '/healthz':
+            return self.respond(200,b'{"status":"ok"}')
+        files={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/timeline.js':'timeline.js','/service.js':'service.js'}
         name=files.get(self.path)
         if not name:
             return self.respond(404,b'{}')
         kinds={'html':'text/html','js':'text/javascript','css':'text/css'}
         self.respond(200,(ROOT/name).read_bytes(),kinds[name.split('.')[-1]])
     def do_POST(self):
-        if self.path not in ('/api/natal','/api/natal/pdf'):
+        if self.path not in ('/api/natal','/api/natal/pdf','/api/timeline'):
             return self.respond(404,b'{}')
         if self.headers.get('Origin') not in self.allowed_origins:
             return self.respond(403,b'{}')
@@ -42,6 +44,10 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body,dict):
                 raise ValueError('Formato de datos inválido.')
             result=calculate_request(body)
+            if self.path == '/api/timeline':
+                from research_reading import calculate_research_reading
+                reading=calculate_research_reading(result['birth'],body['start'],body['end'])
+                return self.respond(200,json.dumps(reading['timeline'],ensure_ascii=False,allow_nan=False).encode())
             if self.path == '/api/natal/pdf':
                 if body.get('expected_result_id') != result['result_id']:
                     return self.respond(409,json.dumps({'error':'El cálculo cambió o esta carta es anterior. Vuelve a calcularla antes de descargar el PDF.'},ensure_ascii=False).encode())

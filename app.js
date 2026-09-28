@@ -59,9 +59,9 @@ $('#context').textContent=r.birth.local_datetime.replace('T',' · ')+' · '+r.bi
 $('#sample').onclick=()=>{searchRevision++;calculationRevision++; $('#city').value='Montevideo, Uruguay';$('#chosen-city').textContent='Ejemplo ficticio · Montevideo, Uruguay';$('#city-results').replaceChildren();$('#city-status').textContent='';for(const [k,v] of Object.entries({date:'1990-06-15',time:'07:30',timezone:'America/Montevideo',latitude:'-34.9',longitude:'-56.2',fold:'',house_system:'P'}))form.elements[k].value=v;$('#status').textContent='Ejemplo ficticio cargado. Pulsa «Calcular mi carta».';current=null;$('#result').hidden=true;};
 form.addEventListener('input',()=>{calculationRevision++;current=null;$('#result').hidden=true;$('#status').textContent='';});
 form.onsubmit=async e=>{e.preventDefault();const revision=++calculationRevision; const f=new FormData(form),button=form.querySelector('[type=submit]');current=null;$('#result').hidden=true;button.disabled=true;$('#status').textContent='Calculando…';
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),75000);
  const body={local_datetime:f.get('date')+'T'+f.get('time'),timezone:f.get('timezone').trim(),latitude:Number(f.get('latitude')),longitude:Number(f.get('longitude')),time_accuracy:'recorded',house_system:f.get('house_system')};if(f.get('fold')!=='')body.fold=Number(f.get('fold'));
- try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await fetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(field){const details=field.closest('details');if(details)details.open=true;field.focus();}throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);$('#status').textContent='Cálculo completo.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El cálculo tardó demasiado. Vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
+ try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(field){const details=field.closest('details');if(details)details.open=true;field.focus();}throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);$('#status').textContent='Cálculo completo.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El cálculo tardó demasiado. Vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
 $('#download').onclick=()=>{if(!current)return;const url=URL.createObjectURL(new Blob([JSON.stringify(current,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trace-carta-natal.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
 let searchRevision=0;
@@ -102,6 +102,7 @@ $('#clear-data').onclick=()=>{
 $('#download-reading').onclick=()=>{
  if(!current)return;
  const section=$('#result').cloneNode(true);
+ section.querySelector('#timeline-panel')?.remove();
  section.removeAttribute('id');section.removeAttribute('tabindex');section.hidden=false;
  section.querySelectorAll('button').forEach(e=>e.remove());
  section.querySelectorAll('details').forEach(e=>e.open=true);
@@ -123,11 +124,11 @@ $('#download-pdf').onclick=async()=>{
  if(!current)return;
  const result=current,revision=calculationRevision,b=$('#download-pdf'),controller=new AbortController();
  b.disabled=true;$('#pdf-status').textContent='Preparando PDF…';
- const timer=setTimeout(()=>controller.abort(),20000);
+ const timer=setTimeout(()=>controller.abort(),80000);
  try{
   if(location.protocol==='file:')throw Error('La descarga PDF necesita el servicio local activo.');
   const profile={...result.birth,expected_result_id:result.result_id,house_system:result.conventions.houses==='Placidus'?'P':'W'};
-  const response=await fetch('/api/natal/pdf',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(profile)});
+  const response=await traceFetch('/api/natal/pdf',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(profile)});
   if(!response.ok){const error=await response.json();throw Error(error.error||'No pudimos crear el PDF. Inténtalo de nuevo.');}
   const blob=await response.blob();if(revision!==calculationRevision)return;
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mi-carta-trace-astra.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
