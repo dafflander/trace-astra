@@ -55,7 +55,9 @@ class Handler(BaseHTTPRequestHandler):
                     from natal_pdf import create_pdf
                 except ImportError:
                     return self.respond(503,json.dumps({'error':'La descarga PDF no está disponible en este servidor.'}).encode())
-                return self.respond(200,create_pdf(result),'application/pdf')
+                from reading_export import export_periods
+                periods=export_periods(result['birth'],body.get('periods',[]))
+                return self.respond(200,create_pdf(result,periods=periods),'application/pdf')
             self.respond(200,json.dumps(result,ensure_ascii=False,allow_nan=False).encode())
         except InputError as exc:
             self.respond(400,json.dumps({'error':str(exc),'field':exc.field},ensure_ascii=False).encode())

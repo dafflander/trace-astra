@@ -21,5 +21,7 @@ def calculate_research_reading(profile,start,end):
             'warning':'No sum of votes across systems. Rule choices are editorial and not validated. Broad periods are not equivalent to brief transits.'}
 
     result['timeline']=select_timeline(result['western'],start,end)
-    result['timeline']['long_term_context']=others['jyotisha']
+    result['timeline']['long_term_context']=[*others['jyotisha'],*others['bazi']]
+    result['timeline']['bazi_natal']=others['bazi_natal']
+    result['timeline']['unavailable']=others['unavailable']
     return result

@@ -1,6 +1,6 @@
 # TRACE ASTRA: piloto experimental
 
-Carta natal, PDF y ventanas temporales occidentales/Jyotisha. Sin IA, base de datos, perfiles persistentes ni anuncios activos. Hipótesis editoriales sin validación predictiva; BaZi excluido del cálculo.
+Lectura integrada: carta natal, biblioteca 0.4.1, afinidades, ventanas occidentales, Jyotisha y PDF conjunto. Sin IA, base de datos, perfiles persistentes ni anuncios activos. Hipótesis editoriales sin validación predictiva; BaZi: cuatro pilares y contexto elemental anual, sin Da Yun ni predicción biográfica.
 
 Python 3.10; instalar requirements-hosting.txt. Variables TRACE_PUBLIC_ORIGIN y TRACE_SOURCE_URL obligatorias. Render: gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 1 --timeout 90. /healthz comprueba disponibilidad; /source enlaza el commit ejecutado cuando RENDER_GIT_COMMIT está disponible. No registrar cuerpos de solicitudes.
 

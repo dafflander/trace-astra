@@ -1,10 +1,10 @@
 // Cloudflare serves this page while the calculation service wakes up.
 (() => {
  const base=document.querySelector('meta[name=trace-api]')?.content||'';
- let readiness=null;
+ let readyUntil=0;
  const overlay=document.createElement('section');overlay.className='service-wait';overlay.hidden=true;overlay.setAttribute('role','status');overlay.setAttribute('aria-live','polite');
- const title=document.createElement('h2');title.textContent='Estamos preparando el motor';
- const text=document.createElement('p');text.textContent='La primera consulta puede tardar alrededor de un minuto. Tus datos siguen en esta pestaña.';
+ const title=document.createElement('h2');title.textContent='Estamos preparando la lectura de tu cielo';
+ const text=document.createElement('p');text.textContent='La primera consulta puede tardar alrededor de un minuto. Estamos comprobando la disponibilidad del servicio.';
  const orbit=document.createElement('div');orbit.className='service-orbit';orbit.setAttribute('aria-hidden','true');overlay.append(orbit,title,text);document.body.append(overlay);
  const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  async function wake(signal){
@@ -21,8 +21,8 @@
  }
  window.traceFetch=async (url,options={})=>{
   // Local server exposes the same readiness endpoint; no birth data in probes.
-  if(!readiness)readiness=wake(options.signal).finally(()=>{readiness=null;});
-  await readiness;options.signal?.throwIfAborted();
+  if(Date.now()>readyUntil){await wake(options.signal);readyUntil=Date.now()+120000;}
+  options.signal?.throwIfAborted();
   return fetch(base+url,options);
  };
 })();

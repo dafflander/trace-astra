@@ -9,8 +9,8 @@ from temporal import find_windows
 from ephemeris_cache import transit_longitude
 
 ANGLES=(0,60,90,120,180)
-TARGETS=('Sun','Moon','Ascendant')
-VERSION='trace-transits-0.1.0'
+TARGETS=(*BODIES,'Ascendant')
+VERSION='trace-transits-0.2.0'
 
 def calculate_transits(profile,start,end):
     birth=normalize(profile)
@@ -22,7 +22,8 @@ def calculate_transits(profile,start,end):
         raise ValueError('Ordered interval of 1 to 730 days required within 1900–2100')
     swe.set_ephe_path('')
     at=datetime.fromisoformat(birth['utc'])
-    targets={b:position(at,b)['longitude_deg'] for b in ('Sun','Moon')}
+    if first<at:raise ValueError('Temporal interval must follow birth')
+    targets={b:position(at,b)['longitude_deg'] for b in BODIES}
     _,angles=swe.houses_ex(julian(at),birth['latitude'],birth['longitude'],b'P',0)
     targets['Ascendant']=angles[0]
     windows=[]

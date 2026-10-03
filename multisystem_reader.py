@@ -48,8 +48,10 @@ def jyotisha_candidates(record,start_utc,end_utc):
 
 def calculate_other_systems(profile,start_utc,end_utc):
     record=calculate(profile,year_days=365.25)
-    return {'jyotisha':jyotisha_candidates(record,start_utc,end_utc),
-            'unavailable':{'bazi':'Calendar conventions and full calculation pending; excluded from predictions.'},
+    from bazi import annual_context
+    bazi,annual=annual_context(profile,start_utc,end_utc,load_library()['bazi']['rules'])
+    return {'jyotisha':jyotisha_candidates(record,start_utc,end_utc), 'bazi':annual,'bazi_natal':bazi,
+            'unavailable':{'iching':'Requires a separate consultation method and inputs.', 'ifa':'No defined reproducible adapter.', 'kabbalah':'No defined reproducible adapter.'},
             'notice':'Experimental editorial candidates. No automatic agreement score or independent confirmation.'}
 
 def review_candidate(candidate,answer,as_of_utc,event_utc=None,criteria_confirmed=False):

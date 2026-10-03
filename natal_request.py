@@ -5,6 +5,7 @@ import math
 import hashlib
 import json
 from natal import calculate_natal
+from editorial_reader import integrated_reading
 
 class InputError(ValueError):
     def __init__(self, message, field):
@@ -42,6 +43,9 @@ def calculate_request(body):
         raise InputError('Elige uno de los sistemas de casas disponibles.', 'house_system')
     try:
         result=calculate_natal(body, body.get('house_system', 'P'))
+        from bazi import calculate as calculate_bazi
+        result['bazi']=calculate_bazi(body)
+        result['reading']=integrated_reading(result)
         canonical=json.dumps(result,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False)
         result['result_id']=hashlib.sha256(canonical.encode()).hexdigest()
         return result

@@ -1,5 +1,7 @@
-"""Three-page vector PDF, rendered in memory; no file or network side effects."""
+"""Vector chart and paginated shared editorial reading, entirely in memory."""
 from io import BytesIO
+from datetime import datetime
+from editorial_reader import integrated_reading,closing_paragraphs
 from math import sin, cos, radians
 from xml.sax.saxutils import escape
 from reportlab.pdfgen.canvas import Canvas
@@ -18,25 +20,88 @@ GUIDE=[
  ('Venus','Afectos, gustos y aquello que valoras en tus vínculos.','¿Qué valoras al compartir tiempo con alguien?'),
  ('Marte','Iniciativa, deseo, acción y manera de afrontar conflictos.','¿Cómo actúas cuando quieres conseguir algo o poner un límite?')
 ]
-def create_pdf(result, *, synthetic=False):
+def create_pdf(result, *, synthetic=False, periods=None):
     stream=BytesIO();c=Canvas(stream,pagesize=A4,pageCompression=1)
-    c.setTitle('Tu carta natal | TRACE ASTRA');c.setAuthor('TRACE ASTRA')
+    c.setTitle('Tu carta y tu recorrido | TraceAstra');c.setAuthor('TraceAstra')
     width,height=A4
     aspects=result.get('aspects',[])
-    total=3+max(1,(len(aspects)+19)//20)
+    reading=integrated_reading(result)
+    moment=lambda value:datetime.fromisoformat(value).strftime('%d/%m/%Y %H:%M UTC')
+    body_names=dict(zip(['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','Ascendant'],['Sol','Luna','Mercurio','Venus','Marte','Júpiter','Saturno','Urano','Neptuno','Plutón','Ascendente']))
+    # Preflight every paragraph so page counts and breaks match the final render.
+    reading_pages=[]; items=[]; cursor=740; section_title="Tu carta natal"
+    def flush():
+        nonlocal items,cursor
+        if items:reading_pages.append((section_title,items))
+        items=[];cursor=740
+    def begin(title):
+        nonlocal section_title
+        flush();section_title=title
+    def flow(value,role='body',keep=0):
+        nonlocal items,cursor
+        size={'heading':18,'evidence':9,'body':10,'notice':10}[role]
+        style=ParagraphStyle('reading-'+role,fontName='Times-Roman' if role=='heading' else 'Helvetica',fontSize=size,leading=size*1.45,textColor=BLUE if role in ('heading','evidence') else INK)
+        paragraph=Paragraph(escape(str(value)),style);_,h=paragraph.wrap(499,800)
+        if cursor-h-keep<70 and items:
+            flush()
+        items.append((paragraph,cursor-h));cursor-=h+10
+    groups=[('natal','Tu lectura natal'),('aspect','Relaciones entre posiciones'),('compatibility','Afinidades con otros signos'),('bazi','Tu nacimiento en BaZi')]
+    for kind,heading in groups:
+        begin(heading)
+        if kind=="natal":flow(reading["notice"],"notice")
+        if kind=='compatibility':flow(reading['compatibility_notice'],'notice')
+        for section in reading['sections']:
+            if section['kind']!=kind:continue
+            flow(section['title'],'heading',115)
+            flow(' · '.join(section['evidence']).replace('↔','/'),'evidence',65)
+            for paragraph in section['paragraphs']:flow(paragraph)
+    for period in periods or []:
+        begin('Tu pasado, para contrastar' if period['kind']=='past' else 'Tu futuro, por comprobar')
+        if period['status']!='ready':
+            flow('Este período no estaba disponible al descargar. La carta y los demás resultados se conservan.');continue
+        flow(period['start']+' a '+period['end']+' · UTC, final excluido','evidence')
+        timeline=period['timeline']
+        if not timeline['cards']:flow('No se encontraron ventanas completas según los criterios de selección. No significa ausencia de acontecimientos.')
+        for card in timeline['cards']:
+            flow(card['title'],'heading',100)
+            flow(moment(card['start_utc'])+' a '+moment(card['end_utc']),'evidence',70)
+            flow(card['past'] if period['kind']=='past' else card['future'])
+            flow('Cuenta como coincidencia: '+' '.join(card['counts']))
+            flow('No cuenta: '+' '.join(card['does_not_count']))
+            flow('Evaluable desde '+moment(card['evaluate_after_utc'])+'. Las respuestas personales no se incluyen en este PDF.','notice')
+            ev=card['detail']['evidence']
+            flow(f"Origen: {body_names[ev['transit_body']]} respecto de {body_names[ev['natal_body']]}, {ev['aspect_deg']}°, orbe mínimo {ev['minimum_orb_deg']:.3f}°. Regla {card['detail']['rule']['id']}.",'evidence')
+        for context in timeline.get('long_term_context',[]):
+            flow('BaZi · contexto anual' if context['system']=='bazi' else 'Jyotisha · contexto de largo plazo','heading',330)
+            flow(moment(context['start_utc'])+' a '+moment(context['end_utc']),'evidence',70)
+            for paragraph in context['rule'].get('reading',[context['rule']['text']]):flow(paragraph)
+            flow('Fechas originales conservadas. No se suma como confirmación independiente ni se puntúa una ventana recortada.','notice')
+    begin('Cómo leer los datos')
+    for term,definition in reading['glossary'].items():flow(term+': '+definition)
+    flow('Lectura TraceAstra '+reading['version']+'. Las afinidades son asociaciones editoriales; no son aspectos entre dos cartas. Solo se incluyen los períodos disponibles solicitados al descargar. Las respuestas personales permanecen en la pestaña y en la copia HTML, no se envían para crear este PDF.','notice')
+    begin(reading['closing']['title'])
+    for paragraph in closing_paragraphs(reading,periods):flow(paragraph)
+    flush()
+    base_total=3+max(1,(len(aspects)+19)//20)
+    total=base_total+len(reading_pages)
     def text(x,y,value,size=11,font='Helvetica',color=INK):
         c.setFillColor(color);c.setFont(font,size);c.drawString(x,y,str(value))
     def para(value,x,y,w=499,size=11,color=INK):
         p=Paragraph(escape(str(value)),ParagraphStyle('body',fontName='Helvetica',fontSize=size,leading=size*1.45,textColor=color))
         _,h=p.wrap(w,800);p.drawOn(c,x,y-h);return y-h
-    def page(number,kicker,title):
+    def page(number,kicker,title,compact=False):
         c.setFillColor(PAPER);c.rect(0,0,width,height,fill=1,stroke=0)
-        text(48,799,'TRACE ASTRA',11,color=BLUE);text(48,752,kicker,9,color=BLUE)
-        text(48,712,title,32,'Times-Roman')
+        text(48,799,'TraceAstra',11,color=BLUE)
+        if compact:
+            text(48,770,title,15,'Times-Roman',BLUE)
+        elif number==1:
+            text(48,712,title,32,'Times-Roman')
+        else:
+            text(48,752,title,24,'Times-Roman')
         text(48,34,'Copia personal'+(' · EJEMPLO FICTICIO' if synthetic else '')+' · Sin IA',9)
         text(width-76,34,str(number)+' / '+str(total),9)
     def degree(p):return p['sign']+' '+format(p['degree_in_sign'],'.2f')+'°'
-    page(1,'TU CIELO, UN PUNTO DE PARTIDA','Tu carta natal')
+    page(1,'','Tu carta y tu recorrido')
     birth=result['birth']
     para(birth['local_datetime'].replace('T',' · ')+' · '+birth['timezone'],48,679,size=10)
     para('Latitud '+str(birth['latitude'])+' · Longitud '+str(birth['longitude'])+' · Casas: '+result['conventions']['houses'],48,657,size=10)
@@ -93,7 +158,7 @@ def create_pdf(result, *, synthetic=False):
     para('Ascendente: '+degree(result['ascendant'])+' · Medio cielo: '+degree(result['midheaven']),48,211,size=10)
     para('R indica movimiento retrógrado aparente. Los signos son sectores de 30° del zodiaco tropical. Las casas dependen del sistema elegido; las casas planetarias usan longitud entre cúspides, sin latitud planetaria.',48,181,size=10)
     para(result['conventions']['provider']+' · '+result['conventions']['backend']+'. '+result['conventions']['time']+'. '+result['conventions']['validation']+'.',48,128,size=9)
-    para('Motor: '+result['version']+' · Guía editorial: natal-pdf-0.1. Datos de nacimiento incluidos: conserva esta copia en un lugar privado.',48,79,size=9)
+    para('Motor: '+result['version']+' · Lectura TraceAstra '+reading['version']+'. Datos de nacimiento incluidos: conserva esta copia en un lugar privado.',48,79,size=9)
     c.showPage()
     page(3,'UNA GUÍA PARA EXPLORAR','Los elementos, en palabras simples')
     para('Estos son los temas que la astrología asocia con cada elemento. Son asociaciones culturales, no conclusiones del cálculo ni descripciones comprobadas de tu personalidad.',48,675,size=10)
@@ -113,6 +178,9 @@ def create_pdf(result, *, synthetic=False):
             text(416,y,'Orbe '+format(a['orb_deg'],'.2f')+'°',10);y-=22
         if not aspects:para('No se encontraron aspectos dentro de los márgenes elegidos.',48,y)
         para('Márgenes: conjunción 8°, sextil 4°, cuadratura 6°, trígono 6°, oposición 8°. Convención editorial TRACE 0.1. Conjunción: violeta punteado; sextil: verde punteado; cuadratura: rojo discontinuo; trígono: azul continuo; oposición: rojo continuo.',48,128,size=9)
+    for index,(section_title,items) in enumerate(reading_pages):
+        c.showPage();page(base_total+index+1,'',section_title,compact=True)
+        for paragraph,y in items:paragraph.drawOn(c,48,y)
     c.save()
     return stream.getvalue()
 

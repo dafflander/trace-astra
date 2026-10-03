@@ -68,7 +68,7 @@ def calculate(profile,year_days=365.25):
     values,flags=swe.calc_ut(julian(birth),swe.MOON,FLAGS|swe.FLG_SIDEREAL)
     if not flags&swe.FLG_SIDEREAL or not flags&swe.FLG_MOSEPH:
         raise RuntimeError('Unexpected ephemeris flags.')
-    data=periods(birth,values[0],year_days=year_days)
+    data=periods(birth,values[0],year_days=year_days,count=18)
     return {'schema_version':1,'provider':'jyotisha','engine_version':VERSION,
             'birth_profile':normalized,
             'conventions':{'ayanamsha':'Swiss SIDM_LAHIRI (1), not Lahiri variants',

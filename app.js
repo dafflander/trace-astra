@@ -40,15 +40,42 @@ const glossary=[
  ['Casas','Son doce divisiones según el sistema elegido. Cambiar entre Placidus y signos enteros cambia las cúspides, pero no las posiciones de los planetas.'],
  ['Retrógrado · R','Indica que la longitud de un cuerpo disminuye en ese instante desde nuestra perspectiva terrestre. No significa que haya invertido físicamente su órbita.']
 ];
+function renderClosing(){
+ const closing=current?.reading?.closing,element=$('#reading-closing');
+ if(!element)return;element.replaceChildren();if(!closing)return;
+ element.append(node('h3',closing.title));
+ for(const text of closing.paragraphs)element.append(node('p',text));
+ for(const period of window.traceReadingData?.()||[]){
+  const cards=period.timeline?.cards||[],state=period.status!=='ready'?'unavailable':cards.length?'ready':'empty';
+  const topics=[...new Set(cards.map(c=>c.title))];
+  const summary=topics.length>1?topics.slice(0,-1).join(', ')+' y '+topics.at(-1):topics[0]||'';
+  element.append(node('p',closing.temporal[period.kind][state].replace('{topics}',summary)));
+ }
+ element.append(node('p',closing.last_line,'closing-last'));
+}
+window.addEventListener('trace:timeline-updated',renderClosing);
 function render(r){
- $('#symbolic-reading').replaceChildren(...symbolicGuide.map(([label,copy,question])=>{
- const position=label==='Ascendente'?r.ascendant:r.planets.find(p=>p.name===label);
- const d=node('details');d.append(node('summary',label+' · '+position.sign),node('p',copy),node('p','Para explorar: '+question,'note'));
- d.append(node('small','La explicación describe el elemento en general; todavía no interpreta su combinación con '+position.sign+'.'));return d;
- }));
+ const reading=r.reading;
+ const blocks=[];
+ if(reading){
+  blocks.push(node('p',reading.notice,'note'));
+  const groups=[['natal','Tu lectura natal'],['aspect','Cómo se relacionan las posiciones'],['compatibility','Afinidades con otros signos'],['bazi','Otro calendario para explorar']];
+  for(const [kind,title] of groups){
+   blocks.push(node('h3',title));
+   if(kind==='compatibility')blocks.push(node('p',reading.compatibility_notice,'note'));
+   for(const section of reading.sections.filter(s=>s.kind===kind)){
+    const article=node(kind==='natal'?'article':'details','','reading-entry');
+    article.append(node(kind==='natal'?'h4':'summary',section.title));
+    article.append(node('p',section.evidence.join(' · '),'reading-evidence'));
+    for(const paragraph of section.paragraphs)article.append(node('p',paragraph));
+    blocks.push(article);
+   }
+  }
+ }else blocks.push(node('p','La lectura desarrollada no está disponible en esta versión del motor. Los cálculos de la carta siguen disponibles.'));
+ $('#symbolic-reading').replaceChildren(...blocks);renderClosing();
 
  $('#pdf-status').textContent='';
- $('#reading').replaceChildren(...glossary.map(([title,copy])=>{const d=node('details');d.append(node('summary',title),node('p',copy));return d;}));
+ $('#reading').replaceChildren(...[...glossary,...Object.entries(reading?.glossary||{})].map(([title,copy])=>{const d=node('details');d.append(node('summary',title),node('p',copy));return d;}));
 $('#context').textContent=r.birth.local_datetime.replace('T',' · ')+' · '+r.birth.timezone+' · Casas: '+r.conventions.houses;
  $('#highlights').replaceChildren(...[['Sol',r.planets[0]],['Luna',r.planets[1]],['Ascendente',r.ascendant]].map(([label,p])=>{const d=node('div','','highlight');d.append(node('small',label),node('strong',p.sign),node('span',p.degree_in_sign.toFixed(2)+'°'));return d;}));
  rows('#positions',r.planets.map((p,i)=>[(i+1)+'. '+p.name+(p.retrograde?' · R':''),fmt(p)+' · Casa '+p.house]));
@@ -56,13 +83,13 @@ $('#context').textContent=r.birth.local_datetime.replace('T',' · ')+' · '+r.bi
  $('#aspect-legend').replaceChildren(...(r.aspect_rules||[]).map(a=>{const p=node('p',a.name+' '+a.angle+'° · margen '+a.orb+'°');p.style.borderLeft='3px '+(a.dash?'dashed':'solid')+' '+a.color;p.style.paddingLeft='12px';return p;}));
  rows('#houses',r.cusps.map(p=>['Casa '+p.house,fmt(p)]));
  $('#method').textContent=r.conventions.provider+' · '+r.conventions.backend+' · Zodiaco tropical. '+r.conventions.time+'. '+r.conventions.validation+'.';wheel(r);$('#result').hidden=false;$('#result').focus();}
-$('#sample').onclick=()=>{searchRevision++;calculationRevision++; $('#city').value='Montevideo, Uruguay';$('#chosen-city').textContent='Ejemplo ficticio · Montevideo, Uruguay';$('#city-results').replaceChildren();$('#city-status').textContent='';for(const [k,v] of Object.entries({date:'1990-06-15',time:'07:30',timezone:'America/Montevideo',latitude:'-34.9',longitude:'-56.2',fold:'',house_system:'P'}))form.elements[k].value=v;$('#status').textContent='Ejemplo ficticio cargado. Pulsa «Calcular mi carta».';current=null;$('#result').hidden=true;};
+$('#sample').onclick=()=>{searchRevision++;calculationRevision++; $('#city').value='Montevideo, Uruguay';$('#chosen-city').textContent='Ejemplo ficticio · Montevideo, Uruguay';$('#city-results').replaceChildren();$('#city-status').textContent='';for(const [k,v] of Object.entries({date:'1990-06-15',time:'07:30',timezone:'America/Montevideo',latitude:'-34.9',longitude:'-56.2',fold:'',house_system:'P'}))form.elements[k].value=v;$('#status').textContent='Ejemplo ficticio cargado. Pulsa «Preparar mi lectura».';current=null;$('#result').hidden=true;};
 form.addEventListener('input',()=>{calculationRevision++;current=null;$('#result').hidden=true;$('#status').textContent='';});
 form.onsubmit=async e=>{e.preventDefault();const revision=++calculationRevision; const f=new FormData(form),button=form.querySelector('[type=submit]');current=null;$('#result').hidden=true;button.disabled=true;$('#status').textContent='Calculando…';
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),75000);
  const body={local_datetime:f.get('date')+'T'+f.get('time'),timezone:f.get('timezone').trim(),latitude:Number(f.get('latitude')),longitude:Number(f.get('longitude')),time_accuracy:'recorded',house_system:f.get('house_system')};if(f.get('fold')!=='')body.fold=Number(f.get('fold'));
- try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(field){const details=field.closest('details');if(details)details.open=true;field.focus();}throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);$('#status').textContent='Cálculo completo.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El cálculo tardó demasiado. Vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
-$('#download').onclick=()=>{if(!current)return;const url=URL.createObjectURL(new Blob([JSON.stringify(current,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trace-carta-natal.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+ try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(field){const details=field.closest('details');if(details)details.open=true;field.focus();}throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El cálculo tardó demasiado. Vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
+$('#download').onclick=()=>{if(!current)return;const url=URL.createObjectURL(new Blob([JSON.stringify({chart:current,periods:window.traceReadingData?.()||[]},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trace-carta-natal.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
 let searchRevision=0;
 $('#city').addEventListener('input',()=>{searchRevision++;$('#city-results').replaceChildren();$('#chosen-city').textContent='';$('#city-status').textContent='';for(const key of ['latitude','longitude','timezone'])form.elements[key].value='';});
@@ -90,7 +117,7 @@ $('#city').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault()
 
 $('#clear-data').onclick=()=>{
  calculationRevision++;searchRevision++;current=null;form.reset();
- for(const id of ['wheel','positions','houses','reading','symbolic-reading','aspects','aspect-legend','highlights','city-results'])$('#'+id).replaceChildren();
+ for(const id of ['wheel','positions','houses','reading','symbolic-reading','reading-closing','aspects','aspect-legend','highlights','city-results'])$('#'+id).replaceChildren();
  for(const id of ['context','method','chosen-city','city-status','status','pdf-status'])$('#'+id).textContent='';
  $('#result').hidden=true;
  $('#status').textContent='Carta y formulario borrados de esta pantalla. Los archivos que hayas descargado permanecen en tu dispositivo.';
@@ -102,19 +129,24 @@ $('#clear-data').onclick=()=>{
 $('#download-reading').onclick=()=>{
  if(!current)return;
  const section=$('#result').cloneNode(true);
- section.querySelector('#timeline-panel')?.remove();
+ // Preserve the visible answers in the offline copy, without active controls.
+ const liveControls=$('#result').querySelectorAll('input,select');
+ section.querySelectorAll('input,select').forEach((copy,i)=>{
+  const live=liveControls[i];const value=live.type==='checkbox'?(live.checked?'Confirmado':'Sin confirmar'):live.value;
+  copy.replaceWith(node('span',value||'Sin respuesta'));
+ });
  section.removeAttribute('id');section.removeAttribute('tabindex');section.hidden=false;
  section.querySelectorAll('button').forEach(e=>e.remove());
  section.querySelectorAll('details').forEach(e=>e.open=true);
  section.querySelectorAll('a').forEach(e=>e.replaceWith(document.createTextNode(e.textContent)));
  const style=Array.from(document.styleSheets).map(sheet=>Array.from(sheet.cssRules).map(rule=>rule.cssText).join('\n')).join('\n');
- const doc=document.implementation.createHTMLDocument('Mi carta natal · TRACE ASTRA');
+ const doc=document.implementation.createHTMLDocument('Mi carta natal · TraceAstra');
  doc.documentElement.lang='es';
  const charset=doc.createElement('meta');charset.setAttribute('charset','utf-8');doc.head.prepend(charset);
  const viewport=doc.createElement('meta');viewport.name='viewport';viewport.content='width=device-width, initial-scale=1';doc.head.append(viewport);
  const policy=doc.createElement('meta');policy.httpEquiv='Content-Security-Policy';policy.content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'";doc.head.append(policy);
  const css=doc.createElement('style');css.textContent=style;doc.head.append(css);
- const main=doc.createElement('main'),brand=doc.createElement('p');brand.textContent='TRACE ASTRA · Copia personal · Guía editorial 0.1';
+ const main=doc.createElement('main'),brand=doc.createElement('p');brand.textContent='TraceAstra · Copia personal · Lectura TraceAstra '+(current.reading?.version||'anterior');
  main.append(brand,doc.importNode(section,true));doc.body.append(main);
  const blob=new Blob(['<!doctype html>\n'+doc.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mi-carta-trace-astra.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -122,15 +154,16 @@ $('#download-reading').onclick=()=>{
 
 $('#download-pdf').onclick=async()=>{
  if(!current)return;
+ const timelineRevision=window.traceTimelineRevision?.();
  const result=current,revision=calculationRevision,b=$('#download-pdf'),controller=new AbortController();
  b.disabled=true;$('#pdf-status').textContent='Preparando PDF…';
- const timer=setTimeout(()=>controller.abort(),80000);
+ const timer=setTimeout(()=>controller.abort(),240000);
  try{
   if(location.protocol==='file:')throw Error('La descarga PDF necesita el servicio local activo.');
-  const profile={...result.birth,expected_result_id:result.result_id,house_system:result.conventions.houses==='Placidus'?'P':'W'};
+  const profile={...result.birth,expected_result_id:result.result_id,house_system:result.conventions.houses==='Placidus'?'P':'W',periods:window.tracePeriods?.()||[]};
   const response=await traceFetch('/api/natal/pdf',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(profile)});
   if(!response.ok){const error=await response.json();throw Error(error.error||'No pudimos crear el PDF. Inténtalo de nuevo.');}
-  const blob=await response.blob();if(revision!==calculationRevision)return;
+  const blob=await response.blob();if(revision!==calculationRevision)return;if(timelineRevision!==window.traceTimelineRevision?.()){$('#pdf-status').textContent='Cambiaste el período durante la descarga. Vuelve a descargar para incluir la selección actual.';return;}
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mi-carta-trace-astra.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   $('#pdf-status').textContent='PDF preparado. Incluye tus datos de nacimiento; guárdalo en un lugar privado.';
  }catch(error){if(revision===calculationRevision)$('#pdf-status').textContent=error.name==='AbortError'?'La generación tardó demasiado. Vuelve a intentarlo.':error.message;}
