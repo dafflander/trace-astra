@@ -1,4 +1,4 @@
-let calculationRevision=0;
+let calculationRevision=0, selectedPlace=null;
 const $=s=>document.querySelector(s), form=$('#form');let current=null;
 const signs=['Aries','Tauro','Géminis','Cáncer','Leo','Virgo','Libra','Escorpio','Sagitario','Capricornio','Acuario','Piscis'];
 const fmt=p=>p.sign+' '+p.degree_in_sign.toFixed(2)+'°';
@@ -84,14 +84,14 @@ $('#context').textContent=r.birth.local_datetime.replace('T',' · ')+' · '+r.bi
  rows('#houses',r.cusps.map(p=>['Casa '+p.house,fmt(p)]));
  $('#method').textContent=r.conventions.provider+' · '+r.conventions.backend+' · Zodiaco tropical. '+r.conventions.time+'. '+r.conventions.validation+'.';wheel(r);$('#result').hidden=false;$('#result').focus();}
 form.addEventListener('input',()=>{calculationRevision++;current=null;$('#result').hidden=true;$('#status').textContent='';});
-form.onsubmit=async e=>{e.preventDefault();const revision=++calculationRevision; const f=new FormData(form),button=form.querySelector('[type=submit]');current=null;$('#result').hidden=true;button.disabled=true;$('#status').textContent='Calculando…';
+form.onsubmit=async e=>{e.preventDefault();if(!selectedPlace){$('#status').textContent='Busca tu ciudad y selecciona el resultado con el país correcto antes de continuar.';$('#city').focus();return;}const revision=++calculationRevision; const f=new FormData(form),button=form.querySelector('[type=submit]');current=null;$('#result').hidden=true;button.disabled=true;$('#status').textContent='Calculando…';
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),75000);
- const body={local_datetime:f.get('date')+'T'+f.get('time'),timezone:f.get('timezone').trim(),latitude:Number(f.get('latitude')),longitude:Number(f.get('longitude')),time_accuracy:'recorded',house_system:f.get('house_system')};if(f.get('fold')!=='')body.fold=Number(f.get('fold'));
- try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(field){const details=field.closest('details');if(details)details.open=true;field.focus();}throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El cálculo tardó demasiado. Vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
+ const body={local_datetime:f.get('date')+'T'+f.get('time'),timezone:selectedPlace.timezone,latitude:selectedPlace.latitude,longitude:selectedPlace.longitude,time_accuracy:'recorded',house_system:f.get('house_system')};if(f.get('fold')!=='')body.fold=Number(f.get('fold'));
+ try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(r.field==='fold'){$('#clock-details').hidden=false;$('#clock-details').open=true;}if(field&&field.type!=='hidden')field.focus();throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El servicio tardó demasiado. Tus datos siguen aquí; pulsa Preparar mi lectura para reintentar.':error.message==='Failed to fetch'?'No pudimos conectar con el servicio. Tus datos siguen aquí; vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
 $('#download').onclick=()=>{if(!current)return;const url=URL.createObjectURL(new Blob([JSON.stringify({chart:current,periods:window.traceReadingData?.()||[]},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trace-carta-natal.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
 let searchRevision=0;
-$('#city').addEventListener('input',()=>{searchRevision++;$('#city-results').replaceChildren();$('#chosen-city').textContent='';$('#city-status').textContent='';for(const key of ['latitude','longitude','timezone'])form.elements[key].value='';});
+$('#city').addEventListener('input',()=>{selectedPlace=null;form.elements.fold.value='';$('#clock-details').hidden=true;searchRevision++;$('#city-results').replaceChildren();$('#chosen-city').textContent='';$('#city-status').textContent='';for(const key of ['latitude','longitude','timezone'])form.elements[key].value='';});
 $('#search-city').onclick=async()=>{
  const query=$('#city').value.trim(), revision=++searchRevision;
  $('#city-results').replaceChildren();
@@ -103,19 +103,16 @@ $('#search-city').onclick=async()=>{
   if(!response.ok)throw Error('Búsqueda no disponible.');
   const data=await response.json();if(revision!==searchRevision)return;
   const places=(data.results||[]).filter(p=>p.timezone&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
-  $('#city-status').textContent=places.length?'Elige tu ciudad y comprueba la región.':'Sin resultados. Prueba otro nombre o introduce la ubicación manualmente.';
-  if(!places.length)$('#location-details').open=true;
-  for(const p of places){const label=[p.name,p.admin1,p.country].filter(Boolean).join(', '),b=node('button',label,'secondary city-choice');b.type='button';b.onclick=()=>{calculationRevision++;current=null;$('#result').hidden=true;for(const key of ['latitude','longitude','timezone'])form.elements[key].value=p[key];$('#chosen-city').textContent='Lugar seleccionado: '+label+' · '+p.timezone;$('#city-results').replaceChildren();$('#city-status').textContent='Ubicación completada. Puedes revisarla debajo.';$('#location-details').open=true;};$('#city-results').append(b);}
- }catch(error){if(revision===searchRevision){$('#city-status').textContent='No pudimos conectar con el buscador. Puedes introducir la ubicación manualmente.';$('#location-details').open=true;}}
+  $('#city-status').textContent=places.length?'Elige tu ciudad y comprueba la región.':'No encontramos esa ciudad. Prueba su nombre sin el país o una localidad cercana que puedas identificar.';
+
+  for(const p of places){const label=[p.name,p.admin1,p.country].filter(Boolean).join(', '),b=node('button',label,'secondary city-choice');b.type='button';b.onclick=()=>{selectedPlace={timezone:p.timezone,latitude:p.latitude,longitude:p.longitude};calculationRevision++;current=null;$('#result').hidden=true;for(const key of ['latitude','longitude','timezone'])form.elements[key].value=p[key];$('#chosen-city').textContent='Lugar de nacimiento: '+label;$('#city-results').replaceChildren();$('#city-status').textContent='Ubicación confirmada. Ya puedes preparar tu lectura.';};$('#city-results').append(b);}
+ }catch(error){if(revision===searchRevision){$('#city-status').textContent='No pudimos conectar con el buscador. Conservamos lo que escribiste. Pulsa Buscar ciudad para reintentar.';}}
  finally{clearTimeout(timer);}
 };
-form.addEventListener('invalid',e=>{if($('#location-details').contains(e.target))$('#location-details').open=true;},true);
-for(const key of ['latitude','longitude','timezone'])form.elements[key].addEventListener('input',()=>{$('#chosen-city').textContent='Ubicación editada manualmente.';});
-
 $('#city').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#search-city').click();}});
 
 $('#clear-data').onclick=()=>{
- calculationRevision++;searchRevision++;current=null;form.reset();
+ calculationRevision++;searchRevision++;current=null;selectedPlace=null;form.reset();$('#clock-details').hidden=true;
  for(const id of ['wheel','positions','houses','reading','symbolic-reading','reading-closing','aspects','aspect-legend','highlights','city-results'])$('#'+id).replaceChildren();
  for(const id of ['context','method','chosen-city','city-status','status','pdf-status'])$('#'+id).textContent='';
  $('#result').hidden=true;
