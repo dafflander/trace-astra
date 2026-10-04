@@ -1,17 +1,18 @@
 """Local, sequential multi-system research entry point; not a production endpoint."""
 from transit_engine import calculate_transits
 from timeline_selection import select_timeline
-from editorial_reader import temporal_reading,anchor_readings
+from editorial_reader import temporal_reading,anchor_readings,load_library
 from multisystem_reader import calculate_other_systems
 
 def calculate_research_reading(profile,start,end):
     western=calculate_transits(profile,start,end)['record']
+    library=load_library()
     candidates=[];partial=[]
     for window in western['astronomical_windows']:
         if window['entry_clipped'] or window['exit_clipped']:
             partial.append(window['window_id'])
         else:
-            candidates.append(temporal_reading(window))
+            candidates.append(temporal_reading(window,library))
     others=calculate_other_systems(profile,start+'T00:00:00+00:00',end+'T00:00:00+00:00')
     result = {'version':'trace-research-reading-0.2.0',
             'western':{'candidates':candidates,'partial_window_ids':partial,

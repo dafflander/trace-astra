@@ -56,13 +56,22 @@ def application(environ,start_response):
             data=page.encode()
         response.extend([code,data,kind])
     h.respond=capture
+    # Never occupy every HTTP thread waiting for the calculation lock.
+    # Health checks and static files must remain available during a long scan.
+    acquired=False
+    if method=='POST':
+        acquired=LOCK.acquire(blocking=False)
+        if not acquired:
+            headers.append(('Retry-After','5'))
+            return reply(503,json.dumps({'error':'El servicio está completando otra lectura. Espera unos segundos y vuelve a intentarlo.'},ensure_ascii=False).encode())
     try:
-        with LOCK: # Swiss has global configuration; serialize inside each process.
-            if method=='GET':h.do_GET()
-            else:h.do_POST()
+        if method=='GET':h.do_GET()
+        else:h.do_POST()
     except Exception:
         # Never log exception payloads or submitted data.
         return reply(500,b'{"error":"No pudimos completar la solicitud."}')
+    finally:
+        if acquired:LOCK.release()
     code,data,kind=response
     if kind=='application/pdf':
         headers.append(('Content-Disposition','attachment; filename="mi-carta-trace-astra.pdf"'))

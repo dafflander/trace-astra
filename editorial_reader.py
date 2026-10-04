@@ -35,8 +35,8 @@ def natal_reading(chart):
             'time_note':'Casas y ángulos omitidos si la hora no figura como registrada. Las demás posiciones conservan la incertidumbre del cálculo de entrada.',
             'sections':sections}
 
-def temporal_reading(window):
-    lib=load_library()
+def temporal_reading(window, library=None):
+    lib=library if library is not None else load_library()
     rules=[r for r in lib['temporal_rules'] if all(r[k]==window.get(k) for k in ('transit_body','natal_body','aspect_deg'))]
     if not rules:
         raise ValueError('No editorial rule for this geometry')

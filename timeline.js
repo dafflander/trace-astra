@@ -7,7 +7,7 @@
  const iso=d=>d.toISOString().slice(0,10);
  const today=()=>{const d=new Date();return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));};
  function reset(){revision++;for(const k of kinds){const s=states[k];s.controller?.abort();s.token++;s.result=null;s.period=null;$('#'+k+'-cards').replaceChildren();$('#'+k+'-context').replaceChildren();$('#'+k+'-status').textContent='';$('#'+k+'-period').textContent='';$('#'+k+'-load').disabled=false;}}
- form.addEventListener('input',reset);form.addEventListener('submit',reset);$('#sample').addEventListener('click',reset);$('#clear-data').addEventListener('click',reset);$('#city-results').addEventListener('click',reset);
+ form.addEventListener('input',reset);form.addEventListener('submit',reset);$('#clear-data').addEventListener('click',reset);$('#city-results').addEventListener('click',reset);
  window.traceTimelineRevision=()=>revision+':'+kinds.map(k=>states[k].token).join(':');
  window.traceReadingData=()=>kinds.map(k=>({kind:k,...states[k].period,status:states[k].result?'ready':'unavailable',timeline:states[k].result}));
  window.tracePeriods=()=>kinds.map(k=>({kind:k,...states[k].period,status:states[k].result?'ready':'unavailable'}));
