@@ -23,13 +23,16 @@ def intervals(profile,kind,anchor):
     return sorted(windows)
 
 def calculate_milestones(profile,kind,anchor):
-    scans=intervals(profile,kind,anchor);cards=[];families=set();candidates=0
+    scans=intervals(profile,kind,anchor);cards=[];families=set();candidates=0;contexts={}
     for a,b in scans:
         record=calculate_research_reading(profile,a.isoformat(),b.isoformat())
+        for context in record['timeline'].get('long_term_context',[]):
+            key=(context['system'],context['start_utc'],context['end_utc'])
+            contexts.setdefault(key,context)
         western=record['western'];candidates+=len(western['candidates'])
         western={**western,'candidates':[c for c in western['candidates'] if c['rule']['event_family'] not in families]}
         picked=select_timeline(western,a.isoformat(),b.isoformat(),max_cards=1)['cards']
         if picked:cards.extend(picked);families.add(picked[0]['detail']['rule']['event_family'])
-    return {'cards':cards,'policy':{'version':'milestones-1','max_cards':4,'method':'bounded_geometric_past_quarterly_future'},'candidate_count':candidates,'long_term_context':[],
+    return {'cards':cards,'policy':{'version':'milestones-1','max_cards':4,'method':'bounded_geometric_past_quarterly_future'},'candidate_count':candidates,'long_term_context':list(contexts.values()),
             'scanned_intervals':[[a.isoformat(),b.isoformat()] for a,b in scans],
             'notice':'Se exploran intervalos acotados, no cada día de toda tu vida. Las fechas del cálculo se conservan; una ventana sin candidatos queda vacía.'}
