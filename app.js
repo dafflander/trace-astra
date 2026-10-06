@@ -59,6 +59,13 @@ function render(r){
  const blocks=[];
  if(reading){
   blocks.push(node('p',reading.notice,'note'),node('p',reading.introduction));$('#forecast-notice').replaceChildren(node('h3',reading.forecast_title),...reading.forecast_notice.map(t=>node('p',t)));
+  if(reading.overview){
+   const overview=reading.overview,e=overview.elements;
+   blocks.push(node('h3',e.title));
+   const grid=node('div','','element-grid');
+   for(const [name,count] of Object.entries(e.counts)){const item=node('article','','element-card');item.append(node('h4',name+' · '+count+' de '+e.total),node('p',e.descriptions[name]),node('p',e.members[name].join(', ')||'Sin cuerpos en este elemento.','note'));grid.append(item);}
+   blocks.push(grid,...e.paragraphs.map(t=>node('p',t)),node('h3',overview.title),...overview.paragraphs.map(t=>node('p',t)));
+  }
   const groups=[['natal','Tu lectura natal'],['aspect','Cómo se relacionan las posiciones'],['compatibility','Afinidades con otros signos'],['bazi','Otro calendario para explorar']];
   for(const [kind,title] of groups){
    blocks.push(node('h3',title));

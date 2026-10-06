@@ -47,6 +47,16 @@ def create_pdf(result, *, synthetic=False, periods=None):
         if cursor-h-keep<70 and items:
             flush()
         items.append((paragraph,cursor-h));cursor-=h+10
+    overview=reading['overview'];elements=overview['elements']
+    begin(elements['title'])
+    flow(reading['notice'],'notice')
+    for name,count in elements['counts'].items():
+        flow(name+' · '+str(count)+' de '+str(elements['total']),'heading',100)
+        flow(elements['descriptions'][name])
+        flow(', '.join(elements['members'][name]) or 'Sin cuerpos en este elemento.','evidence')
+    for paragraph in elements['paragraphs']:flow(paragraph)
+    begin(overview['title'])
+    for paragraph in overview['paragraphs']:flow(paragraph)
     groups=[('natal','Tu lectura natal'),('aspect','Relaciones entre posiciones'),('compatibility','Afinidades con otros signos'),('bazi','Tu nacimiento en BaZi')]
     for kind,heading in groups:
         begin(heading)
