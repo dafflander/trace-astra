@@ -46,7 +46,11 @@ class Handler(BaseHTTPRequestHandler):
             result=calculate_request(body)
             if self.path == '/api/timeline':
                 from research_reading import calculate_research_reading
-                reading=calculate_research_reading(result['birth'],body['start'],body['end'])
+                if body.get('mode')=='milestones':
+                    from milestones import calculate_milestones
+                    reading={'timeline':calculate_milestones(result['birth'],body['kind'],body['anchor'])}
+                else:
+                    reading=calculate_research_reading(result['birth'],body['start'],body['end'])
                 return self.respond(200,json.dumps(reading['timeline'],ensure_ascii=False,allow_nan=False).encode())
             if self.path == '/api/natal/pdf':
                 if body.get('expected_result_id') != result['result_id']:

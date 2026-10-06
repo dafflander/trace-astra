@@ -127,7 +127,11 @@ def integrated_reading(chart):
           'Usamos hora civil local, cambio de día a medianoche y cambio anual en Li Chun (Sol a 315°). A las 23 h el tronco horario usa el día siguiente. No aplicamos corrección de hora solar ni invertimos las estaciones en el hemisferio sur.',
           'Este módulo calcula cuatro pilares y contexto elemental anual. No incluye fuerza estacional, troncos ocultos ni ciclos Da Yun; no equivale a una lectura exhaustiva de BaZi ni pronostica hechos personales.'],
           'rule_ids':['bazi.calendar.civil-midnight.v1']})
-    return {'version':lib['version'],'notice':lib['reading_notice'],
+    import re
+    for section in sections:
+        section['paragraphs']=[re.sub(r'En [^,]+, (?:TraceAstra|TRACE ASTRA) interpreta este tema desde ', 'Este tema se asocia con ',text) for text in section['paragraphs']]
+    from reading_policy import FORECAST_TITLE,FORECAST_NOTICE
+    return {'introduction':'Con el Sol en '+positions['Sun']['sign']+', TraceAstra interpreta los siguientes temas como posibilidades para la reflexión, no como una descripción comprobada de tu personalidad.', 'forecast_title':FORECAST_TITLE,'forecast_notice':FORECAST_NOTICE,'version':lib['version'],'notice':lib['reading_notice'],
             'compatibility_notice':lib['compatibility']['notice'],
             'time_note':'Casas y ángulos requieren una hora registrada; se omiten si la hora es incierta.',
             'sections':sections,'glossary':lib['reading_glossary'],'closing':closing_for_chart(chart,lib)}

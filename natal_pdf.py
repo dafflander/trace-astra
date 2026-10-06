@@ -37,36 +37,43 @@ def create_pdf(result, *, synthetic=False, periods=None):
     def begin(title):
         nonlocal section_title
         flush();section_title=title
-    def flow(value,role='body',keep=0):
+    def flow(value,role='body',keep=0,link=None):
         nonlocal items,cursor
         size={'heading':18,'evidence':9,'body':10,'notice':10}[role]
         style=ParagraphStyle('reading-'+role,fontName='Times-Roman' if role=='heading' else 'Helvetica',fontSize=size,leading=size*1.45,textColor=BLUE if role in ('heading','evidence') else INK)
-        paragraph=Paragraph(escape(str(value)),style);_,h=paragraph.wrap(499,800)
+        content=escape(str(value))
+        if link:content='<link href="'+escape(link)+'">'+content+'</link>'
+        paragraph=Paragraph(content,style);_,h=paragraph.wrap(499,800)
         if cursor-h-keep<70 and items:
             flush()
         items.append((paragraph,cursor-h));cursor-=h+10
     groups=[('natal','Tu lectura natal'),('aspect','Relaciones entre posiciones'),('compatibility','Afinidades con otros signos'),('bazi','Tu nacimiento en BaZi')]
     for kind,heading in groups:
         begin(heading)
-        if kind=="natal":flow(reading["notice"],"notice")
+        if kind=="natal":
+            flow(reading["notice"],"notice");flow(reading["introduction"])
         if kind=='compatibility':flow(reading['compatibility_notice'],'notice')
         for section in reading['sections']:
             if section['kind']!=kind:continue
             flow(section['title'],'heading',115)
             flow(' · '.join(section['evidence']).replace('↔','/'),'evidence',65)
             for paragraph in section['paragraphs']:flow(paragraph)
+    if periods:
+        begin(reading['forecast_title'])
+        for text in reading['forecast_notice']:flow(text)
     for period in periods or []:
         begin('Tu pasado, para contrastar' if period['kind']=='past' else 'Tu futuro, por comprobar')
         if period['status']!='ready':
             flow('Este período no estaba disponible al descargar. La carta y los demás resultados se conservan.');continue
         flow(period['start']+' a '+period['end']+' · UTC, final excluido','evidence')
         timeline=period['timeline']
+        if period.get('mode')=='milestones':flow(timeline['notice'],'notice')
         if not timeline['cards']:flow('No se encontraron ventanas completas según los criterios de selección. No significa ausencia de acontecimientos.')
         for card in timeline['cards']:
             flow(card['title'],'heading',100)
             flow(moment(card['start_utc'])+' a '+moment(card['end_utc']),'evidence',70)
             flow(card['past'] if period['kind']=='past' else card['future'])
-            flow('Cuenta como coincidencia: '+' '.join(card['counts']))
+            flow('Para reconocer este tema: '+' '.join(card['counts']))
             flow('No cuenta: '+' '.join(card['does_not_count']))
             flow('Evaluable desde '+moment(card['evaluate_after_utc'])+'. Las respuestas personales no se incluyen en este PDF.','notice')
             ev=card['detail']['evidence']
@@ -81,6 +88,12 @@ def create_pdf(result, *, synthetic=False, periods=None):
     flow('Lectura TraceAstra '+reading['version']+'. Las afinidades son asociaciones editoriales; no son aspectos entre dos cartas. Solo se incluyen los períodos disponibles solicitados al descargar. Las respuestas personales permanecen en la pestaña y en la copia HTML, no se envían para crear este PDF.','notice')
     begin(reading['closing']['title'])
     for paragraph in closing_paragraphs(reading,periods):flow(paragraph)
+    from reading_policy import PRIVACY,LEGAL_NOTE,LEGAL_URL
+    begin('Uso de la lectura y privacidad')
+    flow('Interpretaciones para entretenimiento y reflexión, sin garantías de predicción. No sustituyen asesoramiento profesional.')
+    flow(LEGAL_NOTE)
+    for text in PRIVACY:flow(text)
+    flow('Información completa: '+LEGAL_URL,'evidence',link=LEGAL_URL)
     flush()
     base_total=3+max(1,(len(aspects)+19)//20)
     total=base_total+len(reading_pages)

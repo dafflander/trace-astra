@@ -58,7 +58,7 @@ function render(r){
  const reading=r.reading;
  const blocks=[];
  if(reading){
-  blocks.push(node('p',reading.notice,'note'));
+  blocks.push(node('p',reading.notice,'note'),node('p',reading.introduction));$('#forecast-notice').replaceChildren(node('h3',reading.forecast_title),...reading.forecast_notice.map(t=>node('p',t)));
   const groups=[['natal','Tu lectura natal'],['aspect','Cómo se relacionan las posiciones'],['compatibility','Afinidades con otros signos'],['bazi','Otro calendario para explorar']];
   for(const [kind,title] of groups){
    blocks.push(node('h3',title));
@@ -90,22 +90,32 @@ form.onsubmit=async e=>{e.preventDefault();if(!selectedPlace){$('#status').textC
  try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(r.field==='fold'){$('#clock-details').hidden=false;$('#clock-details').open=true;}if(field&&field.type!=='hidden')field.focus();throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El servicio tardó demasiado. Tus datos siguen aquí; pulsa Preparar mi lectura para reintentar.':error.message==='Failed to fetch'?'No pudimos conectar con el servicio. Tus datos siguen aquí; vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
 $('#download').onclick=()=>{if(!current)return;const url=URL.createObjectURL(new Blob([JSON.stringify({chart:current,periods:window.traceReadingData?.()||[]},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trace-carta-natal.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
+
+const countryNames=new Intl.DisplayNames(['es'],{type:'region'});
+const countryChoices='AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(' ').map(code=>({code,name:countryNames.of(code)})).sort((a,b)=>a.name.localeCompare(b.name,'es'));
+const normalizeCountry=t=>t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+for(const c of countryChoices){const o=node('option',c.name);o.value=c.name;$('#countries').append(o);}
+const selectedCountry=()=>countryChoices.find(c=>normalizeCountry(c.name)===normalizeCountry($('#country').value)||c.code.toLowerCase()===normalizeCountry($('#country').value));
+$('#country').addEventListener('input',()=>{$('#city').dispatchEvent(new Event('input',{bubbles:true}));});
+let cityLimit=12;
+$('#more-cities').onclick=()=>{cityLimit=100;$('#search-city').click();};
+
 let searchRevision=0;
-$('#city').addEventListener('input',()=>{selectedPlace=null;form.elements.fold.value='';$('#clock-details').hidden=true;searchRevision++;$('#city-results').replaceChildren();$('#chosen-city').textContent='';$('#city-status').textContent='';for(const key of ['latitude','longitude','timezone'])form.elements[key].value='';});
+$('#city').addEventListener('input',()=>{cityLimit=12;$('#more-cities').hidden=true;selectedPlace=null;form.elements.fold.value='';$('#clock-details').hidden=true;searchRevision++;$('#city-results').replaceChildren();$('#chosen-city').textContent='';$('#city-status').textContent='';for(const key of ['latitude','longitude','timezone'])form.elements[key].value='';});
 $('#search-city').onclick=async()=>{
- const query=$('#city').value.trim(), revision=++searchRevision;
+ const country=selectedCountry();const query=$('#city').value.trim().split(',')[0].trim(), revision=++searchRevision;if(!country){$('#city-status').textContent='Selecciona primero el país de nacimiento de la lista.';$('#country').focus();return;}
  $('#city-results').replaceChildren();
  if(query.length<3){$('#city-status').textContent='Escribe al menos tres letras.';return;}
  $('#city-status').textContent='Buscando localidades…';
  const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),12000);
  try{
-  const response=await fetch('https://geocoding-api.open-meteo.com/v1/search?'+new URLSearchParams({name:query,count:'8',language:'es',format:'json'}),{signal:controller.signal,referrerPolicy:'no-referrer'});
+  const response=await fetch('https://geocoding-api.open-meteo.com/v1/search?'+new URLSearchParams({name:query,count:String(cityLimit),countryCode:country.code,language:'es',format:'json'}),{signal:controller.signal,referrerPolicy:'no-referrer'});
   if(!response.ok)throw Error('Búsqueda no disponible.');
   const data=await response.json();if(revision!==searchRevision)return;
-  const places=(data.results||[]).filter(p=>p.timezone&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
+  $('#more-cities').hidden=cityLimit>=100||(data.results||[]).length<cityLimit;const places=(data.results||[]).filter(p=>p.country_code===country.code&&p.timezone&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
   $('#city-status').textContent=places.length?'Elige tu ciudad y comprueba la región.':'No encontramos esa ciudad. Prueba su nombre sin el país o una localidad cercana que puedas identificar.';
 
-  for(const p of places){const label=[p.name,p.admin1,p.country].filter(Boolean).join(', '),b=node('button',label,'secondary city-choice');b.type='button';b.onclick=()=>{selectedPlace={timezone:p.timezone,latitude:p.latitude,longitude:p.longitude};calculationRevision++;current=null;$('#result').hidden=true;for(const key of ['latitude','longitude','timezone'])form.elements[key].value=p[key];$('#chosen-city').textContent='Lugar de nacimiento: '+label;$('#city-results').replaceChildren();$('#city-status').textContent='Ubicación confirmada. Ya puedes preparar tu lectura.';};$('#city-results').append(b);}
+  for(const p of places){const label=[p.name,p.admin1,p.country].filter(Boolean).join(', '),b=node('button',label,'secondary city-choice');b.type='button';b.onclick=()=>{$('#more-cities').hidden=true;selectedPlace={timezone:p.timezone,latitude:p.latitude,longitude:p.longitude};calculationRevision++;current=null;$('#result').hidden=true;for(const key of ['latitude','longitude','timezone'])form.elements[key].value=p[key];$('#chosen-city').textContent='Lugar de nacimiento: '+label;$('#city-results').replaceChildren();$('#city-status').textContent='Ubicación confirmada. Ya puedes preparar tu lectura.';};$('#city-results').append(b);}
  }catch(error){if(revision===searchRevision){$('#city-status').textContent='No pudimos conectar con el buscador. Conservamos lo que escribiste. Pulsa Buscar ciudad para reintentar.';}}
  finally{clearTimeout(timer);}
 };
@@ -113,7 +123,7 @@ $('#city').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault()
 
 $('#clear-data').onclick=()=>{
  calculationRevision++;searchRevision++;current=null;selectedPlace=null;form.reset();$('#clock-details').hidden=true;
- for(const id of ['wheel','positions','houses','reading','symbolic-reading','reading-closing','aspects','aspect-legend','highlights','city-results'])$('#'+id).replaceChildren();
+ for(const id of ['wheel','positions','houses','reading','symbolic-reading','reading-closing','aspects','aspect-legend','highlights','city-results','review-cards'])$('#'+id).replaceChildren();
  for(const id of ['context','method','chosen-city','city-status','status','pdf-status'])$('#'+id).textContent='';
  $('#result').hidden=true;
  $('#status').textContent='Carta y formulario borrados de esta pantalla. Los archivos que hayas descargado permanecen en tu dispositivo.';
