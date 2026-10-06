@@ -39,8 +39,8 @@ def create_pdf(result, *, synthetic=False, periods=None):
         flush();section_title=title
     def flow(value,role='body',keep=0,link=None):
         nonlocal items,cursor
-        size={'heading':18,'evidence':9,'body':10,'notice':10}[role]
-        style=ParagraphStyle('reading-'+role,fontName='Times-Roman' if role=='heading' else 'Helvetica',fontSize=size,leading=size*1.45,textColor=BLUE if role in ('heading','evidence') else INK)
+        size={'heading':18,'evidence':9,'body':10,'notice':10,'closing':11}[role]
+        style=ParagraphStyle('reading-'+role,fontName='Times-Roman' if role=='heading' else 'Helvetica-Oblique' if role=='closing' else 'Helvetica',fontSize=size,leading=size*1.45,textColor=BLUE if role in ('heading','evidence') else INK)
         content=escape(str(value))
         if link:content='<link href="'+escape(link)+'">'+content+'</link>'
         paragraph=Paragraph(content,style);_,h=paragraph.wrap(499,800)
@@ -58,6 +58,9 @@ def create_pdf(result, *, synthetic=False, periods=None):
             flow(section['title'],'heading',115)
             flow(' · '.join(section['evidence']).replace('↔','/'),'evidence',65)
             for paragraph in section['paragraphs']:flow(paragraph)
+    begin(reading['closing']['title'])
+    closing_text=closing_paragraphs(reading,periods)
+    for paragraph in closing_text:flow(paragraph,'closing' if paragraph==reading['closing']['last_line'] else 'body')
     if periods:
         begin(reading['forecast_title'])
         for text in reading['forecast_notice']:flow(text)
@@ -86,8 +89,6 @@ def create_pdf(result, *, synthetic=False, periods=None):
     begin('Cómo leer los datos')
     for term,definition in reading['glossary'].items():flow(term+': '+definition)
     flow('Lectura TraceAstra '+reading['version']+'. Las afinidades son asociaciones editoriales; no son aspectos entre dos cartas. Solo se incluyen los períodos disponibles solicitados al descargar. Las respuestas personales permanecen en la pestaña y en la copia HTML, no se envían para crear este PDF.','notice')
-    begin(reading['closing']['title'])
-    for paragraph in closing_paragraphs(reading,periods):flow(paragraph)
     from reading_policy import PRIVACY,LEGAL_NOTE,LEGAL_URL
     begin('Uso de la lectura y privacidad')
     flow('Interpretaciones para entretenimiento y reflexión, sin garantías de predicción. No sustituyen asesoramiento profesional.')
