@@ -117,7 +117,7 @@ def integrated_reading(chart):
             evidence.append(position_label(p['name'],p)+' ↔ guía solar de '+sign)
             paragraphs.append(rule['title']+'. '+rule['reading'])
             refs.append(key)
-        sections.append({'kind':'compatibility','title':'Afinidades con '+sign,'evidence':evidence,'paragraphs':paragraphs,'rule_ids':refs})
+        sections.append({'kind':'compatibility','title':'Compatibilidad con '+sign,'evidence':evidence,'paragraphs':paragraphs,'rule_ids':refs})
     if chart.get('bazi') and accurate:
         bazi=chart['bazi'];labels={'year':'Año','month':'Mes','day':'Día','hour':'Hora'}
         evidence=[labels[k]+': '+v['label']+' · '+v['element']+' '+v['polarity'] for k,v in bazi['pillars'].items()]
@@ -132,8 +132,8 @@ def integrated_reading(chart):
     import re
     for section in sections:
         section['paragraphs']=[re.sub(r'En [^,]+, (?:TraceAstra|TRACE ASTRA) interpreta este tema desde ', 'Este tema se asocia con ',text) for text in section['paragraphs']]
-    from reading_policy import FORECAST_TITLE,FORECAST_NOTICE
-    return {'overview':overview(chart,lib),'introduction':'Con el Sol en '+positions['Sun']['sign']+', TraceAstra interpreta los siguientes temas como posibilidades para la reflexión, no como una descripción comprobada de tu personalidad.', 'forecast_title':FORECAST_TITLE,'forecast_notice':FORECAST_NOTICE,'version':lib['version'],'notice':lib['reading_notice'],
+    from reading_policy import FORECAST_TITLE,FORECAST_NOTICE,READING_GUIDE,COMPATIBILITY_INTRO
+    return {'guide':READING_GUIDE,'compatibility_intro':COMPATIBILITY_INTRO,'overview':overview(chart,lib),'introduction':'Con el Sol en '+positions['Sun']['sign']+', TraceAstra interpreta los siguientes temas como posibilidades para la reflexión, no como una descripción comprobada de tu personalidad.', 'forecast_title':FORECAST_TITLE,'forecast_notice':FORECAST_NOTICE,'version':lib['version'],'notice':lib['reading_notice'],
             'compatibility_notice':lib['compatibility']['notice'],
             'time_note':'Casas y ángulos requieren una hora registrada; se omiten si la hora es incierta.',
             'sections':sections,'glossary':lib['reading_glossary'],'closing':closing_for_chart(chart,lib)}

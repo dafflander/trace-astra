@@ -47,6 +47,13 @@ def create_pdf(result, *, synthetic=False, periods=None):
         if cursor-h-keep<70 and items:
             flush()
         items.append((paragraph,cursor-h));cursor-=h+10
+    guide=reading['guide']
+    begin(guide['title']);flow(guide['intro'])
+    for key,title,copy in guide['items']:
+        if key=='timeline-panel' and not periods:continue
+        flow(title,'heading',45);flow(copy)
+    flow('Esta copia reúne tu lectura. La información de uso y privacidad está al final; no necesitas responder preguntas para leerla.')
+    flow(guide['last'],'closing')
     overview=reading['overview'];elements=overview['elements']
     begin(elements['title'])
     flow(reading['notice'],'notice')
@@ -57,12 +64,14 @@ def create_pdf(result, *, synthetic=False, periods=None):
     for paragraph in elements['paragraphs']:flow(paragraph)
     begin(overview['title'])
     for paragraph in overview['paragraphs']:flow(paragraph)
-    groups=[('natal','Tu lectura natal'),('aspect','Relaciones entre posiciones'),('compatibility','Afinidades con otros signos'),('bazi','Tu nacimiento en BaZi')]
+    groups=[('compatibility','Tu compatibilidad con otros signos'),('natal','Tu lectura natal'),('aspect','Relaciones entre posiciones'),('bazi','Tu nacimiento en BaZi')]
     for kind,heading in groups:
         begin(heading)
         if kind=="natal":
             flow(reading["notice"],"notice");flow(reading["introduction"])
-        if kind=='compatibility':flow(reading['compatibility_notice'],'notice')
+        if kind=='compatibility':
+            for paragraph in reading['compatibility_intro']['paragraphs']:flow(paragraph.replace('Elige un signo','Busca un signo en las páginas siguientes'))
+            flow(reading['compatibility_intro']['notice'],'notice')
         for section in reading['sections']:
             if section['kind']!=kind:continue
             flow(section['title'],'heading',115)

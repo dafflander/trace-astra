@@ -14,3 +14,24 @@ PRIVACY=[
 'Los PDF, las copias HTML y los cálculos descargados contienen datos de nacimiento y permanecen en tu dispositivo. Guárdalos y compártelos con cuidado.']
 LEGAL_NOTE='Este aviso no limita los derechos que te reconoce la legislación aplicable. No constituye una garantía de ausencia de riesgos ni una exención general de responsabilidad.'
 LEGAL_URL='https://traceastra.com/informacion.html'
+
+READING_GUIDE={
+ 'title':'Qué encontrarás en tu lectura',
+ 'intro':'Tu carta reúne distintas miradas sobre un mismo cielo: el del momento de tu nacimiento. No necesitas saber astrología para recorrerla. Puedes leerla de principio a fin o ir directamente a lo que más te interese.',
+ 'items':[
+  ('elements','Tus elementos','Descubre cómo se distribuyen fuego, tierra, aire y agua en tu carta y qué representa cada uno.'),
+  ('overview','Tu carta en pocas palabras','Una primera mirada que reúne tu Sol, tu Luna y tu Ascendente.'),
+  ('compatibility','Tu compatibilidad con otros signos','Afinidades, posibles diferencias y temas para comprender mejor tus vínculos.'),
+  ('natal','Tu carta, en profundidad','Qué representan los planetas, los signos y las casas, con ejemplos de la vida cotidiana.'),
+  ('aspect','Cómo se relacionan las posiciones','Los aspectos de tu carta, explicados en palabras sencillas.'),
+  ('bazi','Otro calendario para explorar','Una introducción a tu nacimiento en el calendario BaZi.'),
+  ('reading-closing','Una mirada para seguir','Una síntesis que conecta la lectura con preguntas para tu propia reflexión.'),
+  ('timeline-panel','Tu pasado y tu futuro','Hipótesis fechadas para explorar posibles coincidencias y temas futuros, sin certezas ni acontecimientos garantizados.')],
+ 'end':'Al final podrás descargar tu lectura y consultar la información de uso y privacidad. No necesitas responder preguntas para continuar.',
+ 'last':'La carta propone una interpretación; tú decides qué sentido tiene para ti.'}
+COMPATIBILITY_INTRO={
+ 'title':'Tu compatibilidad con otros signos',
+ 'paragraphs':[
+ 'Cada vínculo tiene su propia manera de funcionar. Aquí puedes explorar qué podrías compartir con cada signo, dónde podrían aparecer diferencias y qué ayudaría a entenderse mejor.',
+ 'Elige un signo para descubrir estas afinidades desde cuatro aspectos de tu carta: tu forma de expresarte, tus necesidades emocionales, tu manera de comunicarte y lo que valoras en los vínculos. Puedes leerlo pensando en una pareja, una amistad o alguien con quien trabajas.'],
+ 'notice':'Es una orientación astrológica, no una comparación completa de dos cartas. Ningún signo garantiza una buena relación ni la descarta: también cuentan cómo se escuchan, se cuidan y construyen acuerdos.'}

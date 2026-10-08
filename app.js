@@ -58,18 +58,20 @@ function render(r){
  const reading=r.reading;
  const blocks=[];
  if(reading){
+  const heading=(title,id)=>{const h=node('h3',title);h.id=id;return h;};
+  if(reading.guide){const g=reading.guide,nav=node('nav','','reading-guide');nav.setAttribute('aria-label',g.title);nav.append(node('h3',g.title),node('p',g.intro));const list=node('ul','');for(const [id,title,copy] of g.items){const item=node('li',''),link=node('a',title);link.href='#'+id;item.append(link,node('p',copy));list.append(item);}nav.append(list,node('p',g.end),node('p',g.last,'note'));blocks.push(nav);}
   blocks.push(node('p',reading.notice,'note'),node('p',reading.introduction));$('#forecast-notice').replaceChildren(node('h3',reading.forecast_title),...reading.forecast_notice.map(t=>node('p',t)));
   if(reading.overview){
    const overview=reading.overview,e=overview.elements;
-   blocks.push(node('h3',e.title));
+   blocks.push(heading(e.title,'elements'));
    const grid=node('div','','element-grid');
    for(const [name,count] of Object.entries(e.counts)){const item=node('article','','element-card');item.append(node('h4',name+' · '+count+' de '+e.total),node('p',e.descriptions[name]),node('p',e.members[name].join(', ')||'Sin cuerpos en este elemento.','note'));grid.append(item);}
-   blocks.push(grid,...e.paragraphs.map(t=>node('p',t)),node('h3',overview.title),...overview.paragraphs.map(t=>node('p',t)));
+   blocks.push(grid,...e.paragraphs.map(t=>node('p',t)),heading(overview.title,'overview'),...overview.paragraphs.map(t=>node('p',t)));
   }
-  const groups=[['natal','Tu lectura natal'],['aspect','Cómo se relacionan las posiciones'],['compatibility','Afinidades con otros signos'],['bazi','Otro calendario para explorar']];
+  const groups=[['compatibility','Tu compatibilidad con otros signos'],['natal','Tu carta, en profundidad'],['aspect','Cómo se relacionan las posiciones'],['bazi','Otro calendario para explorar']];
   for(const [kind,title] of groups){
-   blocks.push(node('h3',title));
-   if(kind==='compatibility')blocks.push(node('p',reading.compatibility_notice,'note'));
+   blocks.push(heading(title,kind));
+   if(kind==='compatibility'){const intro=reading.compatibility_intro;if(intro)blocks.push(...intro.paragraphs.map(t=>node('p',t)),node('p',intro.notice,'note'));else blocks.push(node('p',reading.compatibility_notice,'note'));}
    for(const section of reading.sections.filter(s=>s.kind===kind)){
     const article=node(kind==='natal'?'article':'details','','reading-entry');
     article.append(node(kind==='natal'?'h4':'summary',section.title));
