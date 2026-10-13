@@ -39,7 +39,7 @@
   if(Date.parse(start+'T00:00:00Z')<Date.parse(birth.utc))return fail('El período debe comenzar después del nacimiento.');
   if((k==='past'&&Date.parse(end)>boundary)||(k==='future'&&Date.parse(start)<boundary))return fail(k==='past'?'El pasado debe terminar como máximo al comenzar hoy.':'El futuro debe comenzar hoy o después.');
   state.period={start,end,...(auto?{mode:'milestones',anchor:iso(today())}:{})};$('#'+k+'-period').textContent=auto?(k==='past'?'Cuatro intervalos retrospectivos, más separados hacia atrás':'Cuatro intervalos del próximo año'):start+' a '+end+' · UTC (fecha final excluida)';
-  const controller=new AbortController();state.controller=controller;const timer=setTimeout(()=>controller.abort(),120000);
+  const controller=new AbortController();state.controller=controller;const timer=setTimeout(()=>controller.abort(),240000);
   status.textContent='Estamos explorando este período de tu cielo…';button.disabled=true;
   try{
    const response=await traceFetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({...birth,start,end,...(auto?{mode:'milestones',kind:k,anchor:iso(today())}:{})})});const data=await response.json();
