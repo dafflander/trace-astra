@@ -107,17 +107,13 @@ def integrated_reading(chart):
         if not key:continue
         entry=lib['natal_aspects'][key]
         sections.append({'kind':'aspect','title':entry['title'],'evidence':[f"Separación {a['separation_deg']:.2f}° · Orbe {a['orb_deg']:.2f}°"],'paragraphs':entry['paragraphs'],'rule_ids':[key]})
-    signs=list(dict.fromkeys(k.split('.')[1] for k in lib['natal_signs']))
-    for sign in signs:
-        paragraphs=[];evidence=[];refs=[]
-        for body in lib['compatibility']['anchors']:
-            p=positions.get(body)
-            if not p:continue
-            key=f"{body}.{p['sign']}.{sign}";rule=lib['compatibility']['rules'][key]
-            evidence.append(position_label(p['name'],p)+' ↔ guía solar de '+sign)
-            paragraphs.append(rule['title']+'. '+rule['reading'])
-            refs.append(key)
-        sections.append({'kind':'compatibility','title':'Compatibilidad con '+sign,'evidence':evidence,'paragraphs':paragraphs,'rule_ids':refs})
+    from compatibility_reader import load_compatibility, compatibility_section, internal_bridge, compatibility_intro
+    compatibility = load_compatibility()
+    bridge = internal_bridge(positions, compatibility)
+    if bridge:
+        sections.append(bridge)
+    for sign in compatibility['profiles']:
+        sections.append(compatibility_section(positions, sign, compatibility))
     if chart.get('bazi') and accurate:
         bazi=chart['bazi'];labels={'year':'Año','month':'Mes','day':'Día','hour':'Hora'}
         evidence=[labels[k]+': '+v['label']+' · '+v['element']+' '+v['polarity'] for k,v in bazi['pillars'].items()]
@@ -133,7 +129,7 @@ def integrated_reading(chart):
     for section in sections:
         section['paragraphs']=[re.sub(r'En [^,]+, (?:TraceAstra|TRACE ASTRA) interpreta este tema desde ', 'Este tema se asocia con ',text) for text in section['paragraphs']]
     from reading_policy import FORECAST_TITLE,FORECAST_NOTICE,READING_GUIDE,COMPATIBILITY_INTRO
-    return {'guide':READING_GUIDE,'compatibility_intro':COMPATIBILITY_INTRO,'overview':overview(chart,lib),'introduction':'Con el Sol en '+positions['Sun']['sign']+', TraceAstra interpreta los siguientes temas como posibilidades para la reflexión, no como una descripción comprobada de tu personalidad.', 'forecast_title':FORECAST_TITLE,'forecast_notice':FORECAST_NOTICE,'version':lib['version'],'notice':lib['reading_notice'],
+    return {'guide':READING_GUIDE,'compatibility_intro':compatibility_intro(positions,COMPATIBILITY_INTRO,compatibility),'overview':overview(chart,lib),'introduction':'Con el Sol en '+positions['Sun']['sign']+', TraceAstra interpreta los siguientes temas como posibilidades para la reflexión, no como una descripción comprobada de tu personalidad.', 'forecast_title':FORECAST_TITLE,'forecast_notice':FORECAST_NOTICE,'version':lib['version'],'notice':lib['reading_notice'],
             'compatibility_notice':lib['compatibility']['notice'],
             'time_note':'Casas y ángulos requieren una hora registrada; se omiten si la hora es incierta.',
             'sections':sections,'glossary':lib['reading_glossary'],'closing':closing_for_chart(chart,lib)}

@@ -28,7 +28,7 @@ def application(environ,start_response):
     path=environ.get('PATH_INFO','/')
     method=environ.get('REQUEST_METHOD','GET')
     if method=='OPTIONS':
-        if browser_origin not in allowed or path not in ('/api/natal','/api/natal/pdf','/api/timeline'):
+        if browser_origin not in allowed or path not in ('/api/natal','/api/natal/pdf','/api/timeline','/api/comparison','/api/comparison/pdf'):
             return reply(403,b'{}')
         headers.extend([('Access-Control-Allow-Methods','POST'),('Access-Control-Allow-Headers','Content-Type'),('Access-Control-Max-Age','600')])
         return reply(204,b'')

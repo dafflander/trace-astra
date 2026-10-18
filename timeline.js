@@ -1,15 +1,35 @@
 (() => {
- const notifyClosing=()=>window.dispatchEvent(new Event('trace:timeline-updated'));
+ const notifyClosing=()=>{updateProgress();window.dispatchEvent(new Event('trace:timeline-updated'));};
  const kinds=['past','future'];let automatic={past:true,future:true};let revision=0,queue=Promise.resolve();
- const states=Object.fromEntries(kinds.map(k=>[k,{controller:null,token:0,result:null,period:null}]));
+ const states=Object.fromEntries(kinds.map(k=>[k,{controller:null,token:0,result:null,period:null,phase:'idle'}]));
  const bodyNames={Sun:'Sol',Moon:'Luna',Mercury:'Mercurio',Venus:'Venus',Mars:'Marte',Jupiter:'Júpiter',Saturn:'Saturno',Uranus:'Urano',Neptune:'Neptuno',Pluto:'Plutón',Ascendant:'Ascendente'};
  const date=s=>new Date(s).toLocaleString('es',{timeZone:'UTC',dateStyle:'medium',timeStyle:'short'})+' UTC';
  const iso=d=>d.toISOString().slice(0,10);
  const today=()=>{const d=new Date();return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));};
- function reset(){revision++;$('#review-cards').replaceChildren();for(const k of kinds){$('#review-cards').replaceChildren();const s=states[k];s.controller?.abort();s.token++;s.result=null;s.period=null;$('#'+k+'-cards').replaceChildren();$('#'+k+'-context').replaceChildren();$('#'+k+'-status').textContent='';$('#'+k+'-period').textContent='';$('#'+k+'-load').disabled=false;}}
+ function updateProgress(){
+  const phases=kinds.map(k=>states[k].phase),busy=phases.some(p=>p==='queued'||p==='loading');
+  const complete=phases.filter(p=>p==='ready').length,failed=phases.includes('error');
+  const box=$('#reading-progress');if(!box)return;
+  box.setAttribute('data-busy',String(busy));
+  box.hidden=phases.every(p=>p==='idle');
+  const bar=$('#reading-progress-bar');bar.value=complete;bar.max=2;
+  bar.setAttribute('aria-valuetext',complete+' de 2 etapas completadas');
+  const labels={idle:'Sin calcular',queued:'En espera',loading:'En curso',ready:'Listo',error:'No se pudo completar'};
+  $('#reading-progress-stages').textContent='Pasado: '+labels[phases[0]]+' · Futuro: '+labels[phases[1]];
+  $('#reading-progress-title').textContent=busy?'Estamos completando tu lectura':complete===2?'Tu lectura está lista':'Tu lectura está disponible en parte';
+  $('#reading-progress-note').textContent=busy?'Puedes seguir leyendo tu carta mientras trabajamos. Mantén esta pestaña abierta. La barra muestra etapas terminadas, no el tiempo restante. El PDF con los períodos disponibles se habilitará al terminar.' : complete===2?'Ya puedes descargar el PDF con tu carta y los períodos calculados. Un período puede estar listo aunque no se hayan encontrado hitos.': 'Puedes reintentar lo pendiente o descargar el PDF con lo disponible; el informe indicará qué falta.';
+  for(const k of kinds)$('#retry-'+k).hidden=states[k].phase!=='error';
+  const button=$('#download-pdf');
+  button.disabled=busy||!!window.tracePdfBusy;
+  button.textContent=window.tracePdfBusy?'Preparando PDF…':busy?'PDF disponible al terminar ('+complete+'/2)':complete===2?'Descargar PDF de la lectura':'Descargar PDF con lo disponible';
+  $('#export-scope').textContent=busy?'El pasado y el futuro siguen en preparación. Puedes seguir leyendo; espera a que terminen para descargar el PDF.': 'El PDF reúne tu carta y los períodos disponibles, recalculados sin enviar tus respuestas. Si falta algún período, se indicará en el informe. La copia HTML conserva lo que ves en esta pestaña.';
+ }
+ window.addEventListener('trace:timeline-updated',updateProgress);
+ function reset(){revision++;$('#review-cards').replaceChildren();for(const k of kinds){$('#review-cards').replaceChildren();const s=states[k];s.controller?.abort();s.token++;s.result=null;s.period=null;s.phase='idle';$('#'+k+'-cards').replaceChildren();$('#'+k+'-context').replaceChildren();$('#'+k+'-status').textContent='';$('#'+k+'-period').textContent='';$('#'+k+'-load').disabled=false;}notifyClosing();}
  form.addEventListener('input',reset);form.addEventListener('submit',reset);$('#clear-data').addEventListener('click',reset);$('#city-results').addEventListener('click',reset);
  window.traceTimelineRevision=()=>revision+':'+kinds.map(k=>states[k].token).join(':');
  window.traceReadingData=()=>kinds.map(k=>({kind:k,...states[k].period,status:states[k].result?'ready':'unavailable',timeline:states[k].result}));
+ window.traceTimelineProgress=()=>kinds.map(k=>({kind:k,phase:states[k].phase}));
  window.tracePeriods=()=>kinds.map(k=>({kind:k,...states[k].period,status:states[k].result?'ready':'unavailable'}));
  function display(c,cards,k){
   const article=node('article','','timeline-card');article.append(node('h4',c.title),node('p',date(c.start_utc)+' — '+date(c.end_utc)));
@@ -34,18 +54,19 @@
   const status=$('#'+k+'-status'),button=$('#'+k+'-load');
   const auto=automatic[k];const start=$('#'+k+'-start').value,end=$('#'+k+'-end').value,days=(Date.parse(end)-Date.parse(start))/86400000;
   const boundary=today().getTime(),birth={...current.birth};
-  const fail=message=>{notifyClosing();status.textContent=message;button.disabled=false;button.textContent='Reintentar este período';};
+  const fail=message=>{state.phase='error';notifyClosing();status.textContent=message;button.disabled=false;button.textContent='Reintentar este período';};
   if(!Number.isFinite(days)||days<=0||days>730)return fail('Elige un intervalo de 1 a 730 días.');
   if(Date.parse(start+'T00:00:00Z')<Date.parse(birth.utc))return fail('El período debe comenzar después del nacimiento.');
   if((k==='past'&&Date.parse(end)>boundary)||(k==='future'&&Date.parse(start)<boundary))return fail(k==='past'?'El pasado debe terminar como máximo al comenzar hoy.':'El futuro debe comenzar hoy o después.');
   state.period={start,end,...(auto?{mode:'milestones',anchor:iso(today())}:{})};$('#'+k+'-period').textContent=auto?(k==='past'?'Cuatro intervalos retrospectivos, más separados hacia atrás':'Cuatro intervalos del próximo año'):start+' a '+end+' · UTC (fecha final excluida)';
   const controller=new AbortController();state.controller=controller;const timer=setTimeout(()=>controller.abort(),240000);
+  state.phase='loading';notifyClosing();
   status.textContent='Estamos explorando este período de tu cielo…';button.disabled=true;
   try{
    const response=await traceFetch('/api/timeline',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({...birth,start,end,...(auto?{mode:'milestones',kind:k,anchor:iso(today())}:{})})});const data=await response.json();
    if(revision!==expectedRevision||state.token!==token)return;
    if(!response.ok)throw Error(data.error||'No pudimos completar este período.');
-   state.result=data;$('#review-cards').replaceChildren();for(const other of kinds.filter(x=>x!==k)){if(states[other].result){$('#'+other+'-cards').replaceChildren();states[other].result.cards.forEach(c=>display(c,$('#'+other+'-cards'),other));}}notifyClosing();data.cards.forEach(c=>display(c,$('#'+k+'-cards'),k));
+   state.result=data;state.phase='ready';$('#review-cards').replaceChildren();for(const other of kinds.filter(x=>x!==k)){if(states[other].result){$('#'+other+'-cards').replaceChildren();states[other].result.cards.forEach(c=>display(c,$('#'+other+'-cards'),other));}}notifyClosing();data.cards.forEach(c=>display(c,$('#'+k+'-cards'),k));
    for(const c of data.long_term_context||[]){
     const d=node('article','','timeline-context-entry');d.append(node('h4',c.system==='bazi'?'BaZi · contexto anual':'Jyotisha · contexto de largo plazo'),node('p',date(c.start_utc)+' — '+date(c.end_utc)));
     for(const paragraph of c.rule.reading||[c.rule.text])d.append(node('p',paragraph));
@@ -58,15 +79,17 @@
   finally{clearTimeout(timer);if(revision===expectedRevision&&state.token===token)button.disabled=false;notifyClosing();}
  }
  function enqueue(k){
-  $('#review-cards').replaceChildren();const s=states[k];s.controller?.abort();s.token++;s.result=null;s.period=null;
+  $('#review-cards').replaceChildren();const s=states[k];s.controller?.abort();s.token++;s.result=null;s.period=null;s.phase='idle';
   $('#'+k+'-cards').replaceChildren();$('#'+k+'-context').replaceChildren();
+  s.phase='queued';
   $('#'+k+'-status').textContent='En espera para completar tu lectura…';$('#'+k+'-load').disabled=true;
   notifyClosing();const rev=revision,token=s.token;queue=queue.catch(()=>{}).then(()=>load(k,rev,token));
  }
  for(const k of kinds){
+  $('#retry-'+k).onclick=()=>enqueue(k);
   $('#'+k+'-load').onclick=()=>{automatic[k]=false;enqueue(k);};
   for(const suffix of ['start','end'])$('#'+k+'-'+suffix).addEventListener('input',()=>{
-   $('#review-cards').replaceChildren();const s=states[k];s.controller?.abort();s.token++;s.result=null;s.period=null;
+   $('#review-cards').replaceChildren();const s=states[k];s.controller?.abort();s.token++;s.result=null;s.period=null;s.phase='idle';
    $('#'+k+'-cards').replaceChildren();$('#'+k+'-context').replaceChildren();$('#'+k+'-period').textContent='';
    $('#'+k+'-status').textContent='Pulsa actualizar para calcular el nuevo período.';$('#'+k+'-load').disabled=false;notifyClosing();
   });

@@ -46,6 +46,8 @@ function renderClosing(){
  element.append(node('h3',closing.title));
  for(const text of closing.paragraphs)element.append(node('p',text));
  for(const period of window.traceReadingData?.()||[]){
+  const phase=(window.traceTimelineProgress?.()||[]).find(p=>p.kind===period.kind)?.phase;
+  if(phase==='queued'||phase==='loading'||phase==='idle')continue;
   const cards=period.timeline?.cards||[],state=period.status!=='ready'?'unavailable':cards.length?'ready':'empty';
   const topics=[...new Set(cards.map(c=>c.title))];
   const summary=topics.length>1?topics.slice(0,-1).join(', ')+' y '+topics[topics.length-1]:topics[0]||'';
@@ -169,10 +171,10 @@ $('#download-reading').onclick=()=>{
 };
 
 $('#download-pdf').onclick=async()=>{
- if(!current)return;
+ if(!current||window.traceTimelineProgress?.().some(p=>p.phase==='queued'||p.phase==='loading'))return;
  const timelineRevision=window.traceTimelineRevision?.();
  const result=current,revision=calculationRevision,b=$('#download-pdf'),controller=new AbortController();
- b.disabled=true;$('#pdf-status').textContent='Preparando PDF…';
+ window.tracePdfBusy=true;b.disabled=true;b.textContent='Preparando PDF…';$('#pdf-status').textContent='Preparando PDF…';
  const timer=setTimeout(()=>controller.abort(),360000);
  try{
   if(location.protocol==='file:')throw Error('La descarga PDF necesita el servicio local activo.');
@@ -183,5 +185,5 @@ $('#download-pdf').onclick=async()=>{
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mi-carta-trace-astra.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   $('#pdf-status').textContent='PDF preparado. Incluye tus datos de nacimiento; guárdalo en un lugar privado.';
  }catch(error){if(revision===calculationRevision)$('#pdf-status').textContent=error.name==='AbortError'?'La generación tardó demasiado. Vuelve a intentarlo.':error.message;}
- finally{clearTimeout(timer);b.disabled=false;}
+ finally{clearTimeout(timer);window.tracePdfBusy=false;b.disabled=false;window.dispatchEvent(new Event('trace:timeline-updated'));}
 };

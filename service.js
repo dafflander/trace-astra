@@ -57,7 +57,7 @@
  }
  window.traceFetch=async(url,options={})=>{
   if(typeof fetch!=='function'||typeof AbortController!=='function')throw error('BrowserUnsupported','Este navegador no permite completar la conexión. Abre esta página en una versión actualizada de Safari o Chrome.');
-  const job={controller:new AbortController(),cancelled:false,started:Date.now(),pdf:url==='/api/natal/pdf'};
+  const job={controller:new AbortController(),cancelled:false,started:Date.now(),pdf:url.endsWith('/pdf')};
   const parent=options.signal,stop=()=>job.controller.abort();
   if(parent?.aborted)stop();else parent?.addEventListener('abort',stop);
   const ticker=setInterval(()=>{if(displayed===job)paint();},1000);
@@ -65,7 +65,7 @@
    check(job.controller.signal);
    if(Date.now()>=readyUntil){await wake(job);readyUntil=Date.now()+120000;}
    check(job.controller.signal);
-   if(url==='/api/natal'||job.pdf)show(job,job.pdf?'Conexión lista. Estamos creando tu documento…':'Conexión lista. Estamos calculando tu carta…');
+   if(url==='/api/natal'||url==='/api/comparison'||job.pdf)show(job,job.pdf?'Conexión lista. Estamos creando tu documento…':'Conexión lista. Estamos calculando tu carta…');
    else {visible.delete(job);paint();}
    let response;
    try{response=await fetch(base+url,{...options,signal:job.controller.signal});}

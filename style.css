@@ -26,3 +26,7 @@
 .element-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}.element-card{padding:18px;border:1px solid #bdcbd3;border-radius:14px}.element-card h4{margin-top:0}.element-card p{overflow-wrap:anywhere}@media(max-width:600px){.element-grid{grid-template-columns:1fr}}
 
 .reading-guide{padding:20px;border:1px solid #bdcbd3;border-radius:14px;margin-bottom:28px}.reading-guide li{margin:12px 0}.reading-guide a{display:inline-block;padding:8px 0;font-weight:600}.reading-guide li p{margin:0 0 6px}.reading-entry summary{min-height:44px}#elements,#overview,#compatibility,#natal,#aspect,#bazi{scroll-margin-top:20px}
+
+.reading-progress{margin-top:1.5rem;padding:1rem;border:1px solid #a4b4bf;border-radius:12px;background:#edf2f5}.reading-progress progress{display:block;width:100%;height:14px;accent-color:#244e70}.reading-progress p:first-child{font-weight:600}.reading-progress button{min-height:44px;max-width:100%;white-space:normal}.reading-progress [hidden],.reading-progress[hidden]{display:none}
+
+.reading-progress[data-busy="true"] #reading-progress-title::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%;background:#244e70;animation:reading-pulse 1.6s ease-in-out infinite}@keyframes reading-pulse{50%{opacity:.3}}@media(prefers-reduced-motion:reduce){.reading-progress[data-busy="true"] #reading-progress-title::before{animation:none}}

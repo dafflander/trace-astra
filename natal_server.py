@@ -25,14 +25,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/healthz':
             return self.respond(200,b'{"status":"ok"}')
-        files={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/timeline.js':'timeline.js','/service.js':'service.js'}
+        files={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/timeline.js':'timeline.js','/service.js':'service.js','/comparison.js':'comparison.js'}
         name=files.get(self.path)
         if not name:
             return self.respond(404,b'{}')
         kinds={'html':'text/html','js':'text/javascript','css':'text/css'}
         self.respond(200,(ROOT/name).read_bytes(),kinds[name.split('.')[-1]])
     def do_POST(self):
-        if self.path not in ('/api/natal','/api/natal/pdf','/api/timeline'):
+        if self.path not in ('/api/natal','/api/natal/pdf','/api/timeline','/api/comparison','/api/comparison/pdf'):
             return self.respond(404,b'{}')
         if self.headers.get('Origin') not in self.allowed_origins:
             return self.respond(403,b'{}')
@@ -43,6 +43,15 @@ class Handler(BaseHTTPRequestHandler):
             body=json.loads(self.rfile.read(size))
             if not isinstance(body,dict):
                 raise ValueError('Formato de datos inválido.')
+            if self.path in ('/api/comparison','/api/comparison/pdf'):
+                from synastry import calculate_comparison
+                comparison=calculate_comparison(body)
+                if self.path.endswith('/pdf'):
+                    if body.get('expected_result_id')!=comparison['result_id']:
+                        return self.respond(409,json.dumps({'error':'Los datos cambiaron. Vuelve a comparar antes de descargar.'}).encode())
+                    from synastry_pdf import create_comparison_pdf
+                    return self.respond(200,create_comparison_pdf(comparison),'application/pdf')
+                return self.respond(200,json.dumps(comparison,ensure_ascii=False).encode())
             result=calculate_request(body)
             if self.path == '/api/timeline':
                 from research_reading import calculate_research_reading

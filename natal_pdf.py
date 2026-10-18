@@ -36,7 +36,8 @@ def create_pdf(result, *, synthetic=False, periods=None):
         items=[];cursor=740
     def begin(title):
         nonlocal section_title
-        flush();section_title=title
+        section_title="Tu lectura"
+        flow(title,'heading',90)
     def flow(value,role='body',keep=0,link=None):
         nonlocal items,cursor
         size={'heading':18,'evidence':9,'body':10,'notice':10,'closing':11}[role]
@@ -74,6 +75,14 @@ def create_pdf(result, *, synthetic=False, periods=None):
             flow(reading['compatibility_intro']['notice'],'notice')
         for section in reading['sections']:
             if section['kind']!=kind:continue
+            # Keep compact entries together without forcing every section onto a new page.
+            if kind=='compatibility':
+                texts=[(section['title'],18),(' · '.join(section['evidence']),9),*[(p,10) for p in section['paragraphs']]]
+                block_height=0
+                for value,size in texts:
+                    p=Paragraph(escape(value),ParagraphStyle('measure',fontName='Times-Roman' if size==18 else 'Helvetica',fontSize=size,leading=size*1.45))
+                    block_height+=p.wrap(499,800)[1]+10
+                if block_height<=670 and cursor-block_height<70 and items:flush()
             flow(section['title'],'heading',115)
             flow(' · '.join(section['evidence']).replace('↔','/'),'evidence',65)
             for paragraph in section['paragraphs']:flow(paragraph)
