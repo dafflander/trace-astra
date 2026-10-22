@@ -5,13 +5,14 @@ from http import HTTPStatus
 from threading import Lock
 from urllib.parse import urlparse
 from natal_server import Handler
+from security_runtime import LIMITER, run_calculation, SECURITY_HEADERS
 
 LOCK=Lock()
 def application(environ,start_response):
     origin=os.environ.get('TRACE_PUBLIC_ORIGIN','')
     source=os.environ.get('TRACE_SOURCE_URL','')
     valid=lambda value: urlparse(value).scheme=='https' and bool(urlparse(value).netloc)
-    headers=[('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),('Referrer-Policy','no-referrer')]
+    headers=[('Cache-Control','no-store'),*SECURITY_HEADERS]
     browser_origin=environ.get('HTTP_ORIGIN')
     allowed=(origin,'https://traceastra.com')
     if browser_origin in allowed:
@@ -40,6 +41,26 @@ def application(environ,start_response):
         return reply(405,b'{}')
     if method=='POST' and environ.get('CONTENT_TYPE','').split(';')[0]!='application/json':
         return reply(415,b'{"error":"Expected application/json"}')
+    raw=None
+    if method=='POST':
+        if path not in ('/api/natal','/api/natal/pdf','/api/timeline','/api/comparison','/api/comparison/pdf'):
+            return reply(404,b'{}')
+        if browser_origin not in allowed:
+            return reply(403,b'{}')
+        try:
+            size=int(environ.get('CONTENT_LENGTH','0'))
+        except (TypeError,ValueError):
+            return reply(400,b'{}')
+        if not 0<size<=4096:
+            return reply(413,b'{"error":"Solicitud demasiado extensa o vacia."}')
+        # Never trust client-supplied forwarding headers for limiter identity.
+        retry=LIMITER.admit(environ.get('REMOTE_ADDR','unknown'))
+        if retry:
+            headers.append(('Retry-After',str(retry)))
+            return reply(429,b'{"error":"Demasiadas solicitudes. Espera un minuto y vuelve a intentar."}')
+        raw=environ['wsgi.input'].read(size)
+        if len(raw)!=size:
+            return reply(400,b'{}')
     h=Handler.__new__(Handler)
     h.path=path
     h.allowed_origins=allowed # browsers must send the configured same origin
@@ -66,7 +87,7 @@ def application(environ,start_response):
             return reply(503,json.dumps({'error':'El servicio está completando otra lectura. Espera unos segundos y vuelve a intentarlo.'},ensure_ascii=False).encode())
     try:
         if method=='GET':h.do_GET()
-        else:h.do_POST()
+        else:response.extend(run_calculation(path,raw,browser_origin,allowed))
     except Exception:
         # Never log exception payloads or submitted data.
         return reply(500,b'{"error":"No pudimos completar la solicitud."}')

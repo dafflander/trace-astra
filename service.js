@@ -73,7 +73,8 @@
    if(response.status===429||response.status===503){
     readyUntil=0;
     let data;try{data=await response.clone().json();}catch(_){}
-    if(response.status===429||data?.error?.includes('completando otra lectura'))throw error('ServiceBusy','El servicio está ocupado con otra lectura. Espera unos segundos y vuelve a intentarlo. Tus datos siguen aquí.');
+    if(response.status===429)throw error('ServiceBusy','Has realizado varias solicitudes seguidas. Espera un minuto antes de reintentar. Tus datos siguen aquí.');
+    if(data?.error?.includes('completando otra lectura'))throw error('ServiceBusy','El servicio está ocupado con otra lectura. Espera unos segundos y vuelve a intentarlo. Tus datos siguen aquí.');
     throw error('ServiceUnavailable','El servicio no está disponible en este momento. Tus datos siguen aquí; vuelve a intentarlo en unos minutos.');
    }
    if([502,504].includes(response.status)){readyUntil=0;throw error('ServiceUnavailable','El servicio no respondió a tiempo. Tus datos siguen aquí; vuelve a intentarlo.');}
