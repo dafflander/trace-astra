@@ -53,7 +53,12 @@ def _calculate(connection,path,raw,origin,allowed):
         connection.send((500,b'{"error":"No pudimos completar la solicitud."}','application/json'))
     finally:connection.close()
 
-def run_calculation(path,raw,origin,allowed,timeout=75):
+def calculation_timeout(path):
+    # Full natal PDF recalculates both timelines on the free hosting CPU.
+    return 180 if path == "/api/natal/pdf" else 75
+
+def run_calculation(path,raw,origin,allowed,timeout=None):
+    if timeout is None:timeout=calculation_timeout(path)
     # A separate process can be terminated even inside a native ephemeris call.
     ctx=multiprocessing.get_context('spawn')
     reader,writer=ctx.Pipe(duplex=False)
