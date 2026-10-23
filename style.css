@@ -30,3 +30,5 @@
 .reading-progress{margin-top:1.5rem;padding:1rem;border:1px solid #a4b4bf;border-radius:12px;background:#edf2f5}.reading-progress progress{display:block;width:100%;height:14px;accent-color:#244e70}.reading-progress p:first-child{font-weight:600}.reading-progress button{min-height:44px;max-width:100%;white-space:normal}.reading-progress [hidden],.reading-progress[hidden]{display:none}
 
 .reading-progress[data-busy="true"] #reading-progress-title::before{content:"";display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%;background:#244e70;animation:reading-pulse 1.6s ease-in-out infinite}@keyframes reading-pulse{50%{opacity:.3}}@media(prefers-reduced-motion:reduce){.reading-progress[data-busy="true"] #reading-progress-title::before{animation:none}}
+
+.service-wait{overflow-y:auto}.service-wait h2{font-size:clamp(24px,5vw,36px);line-height:1.2;max-width:24ch}.service-wait .service-orbit{flex-shrink:0}.service-wait button{flex-shrink:0}@media(max-height:650px){.service-wait:not([hidden]){justify-content:flex-start}.service-wait .service-orbit{width:40px;height:40px}.service-wait p{margin:8px 0}}

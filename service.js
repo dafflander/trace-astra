@@ -8,13 +8,17 @@
  const elapsed=document.createElement('p');elapsed.className='note';
  const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar y volver a mis datos';
  const orbit=document.createElement('div');orbit.className='service-orbit';orbit.setAttribute('aria-hidden','true');
- overlay.append(orbit,title,text,elapsed,cancel);document.body.append(overlay);
+ const pdfNote=document.createElement('p');pdfNote.className='note';
+ overlay.append(orbit,title,text,elapsed,cancel,pdfNote);document.body.append(overlay);
  const visible=new Set();let displayed=null,previousFocus=null;
  function paint(){
   const jobs=Array.from(visible);displayed=jobs[jobs.length-1]||null;
   if(!displayed){overlay.hidden=true;if(previousFocus?.isConnected)previousFocus.focus();previousFocus=null;return;}
   const first=overlay.hidden;overlay.hidden=false;text.textContent=displayed.message;
-  title.textContent=displayed.pdf?'Estamos preparando tu PDF':'Estamos preparando la lectura de tu cielo';
+  title.textContent=displayed.pdf?'Estamos preparando tu lectura para llevar':'Estamos preparando la lectura de tu cielo';
+  pdfNote.hidden=!displayed.pdf;
+  pdfNote.textContent=displayed.pdf?(displayed.comparison?'Estamos reuniendo las dos cartas y la lectura de sus vínculos en un solo PDF. ':'Estamos reuniendo tu carta y las miradas al pasado y al futuro en un solo PDF. ')+'La preparación puede tardar aproximadamente entre 1 y 3 minutos. Mantén esta pestaña abierta. La descarga comenzará cuando el documento esté listo.':'';
+  cancel.textContent=displayed.pdf?'Cancelar preparación':'Cancelar y volver a mis datos';
   elapsed.textContent=Math.floor((Date.now()-displayed.started)/1000)+' segundos de espera · Puedes cancelar sin borrar tus datos.';
   if(first){previousFocus=document.activeElement;cancel.focus();}
  }
@@ -57,7 +61,7 @@
  }
  window.traceFetch=async(url,options={})=>{
   if(typeof fetch!=='function'||typeof AbortController!=='function')throw error('BrowserUnsupported','Este navegador no permite completar la conexión. Abre esta página en una versión actualizada de Safari o Chrome.');
-  const job={controller:new AbortController(),cancelled:false,started:Date.now(),pdf:url.endsWith('/pdf')};
+  const job={controller:new AbortController(),cancelled:false,started:Date.now(),pdf:url.endsWith('/pdf'),comparison:url.includes('/comparison')};
   const parent=options.signal,stop=()=>job.controller.abort();
   if(parent?.aborted)stop();else parent?.addEventListener('abort',stop);
   const ticker=setInterval(()=>{if(displayed===job)paint();},1000);

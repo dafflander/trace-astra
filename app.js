@@ -65,10 +65,11 @@ function render(r){
   blocks.push(node('p',reading.notice,'note'),node('p',reading.introduction));$('#forecast-notice').replaceChildren(node('h3',reading.forecast_title),...reading.forecast_notice.map(t=>node('p',t)));
   if(reading.overview){
    const overview=reading.overview,e=overview.elements;
+   $('#quick-reading').replaceChildren(node('h3',overview.title),...overview.paragraphs.map(t=>node('p',t)),node('p',reading.notice,'note'));
    blocks.push(heading(e.title,'elements'));
    const grid=node('div','','element-grid');
    for(const [name,count] of Object.entries(e.counts)){const item=node('article','','element-card');item.append(node('h4',name+' · '+count+' de '+e.total),node('p',e.descriptions[name]),node('p',e.members[name].join(', ')||'Sin cuerpos en este elemento.','note'));grid.append(item);}
-   blocks.push(grid,...e.paragraphs.map(t=>node('p',t)),heading(overview.title,'overview'),...overview.paragraphs.map(t=>node('p',t)));
+   blocks.push(grid,...e.paragraphs.map(t=>node('p',t)));
   }
   const groups=[['compatibility','Tu compatibilidad con otros signos'],['natal','Tu carta, en profundidad'],['aspect','Cómo se relacionan las posiciones'],['bazi','Otro calendario para explorar']];
   for(const [kind,title] of groups){
@@ -77,7 +78,7 @@ function render(r){
    for(const section of reading.sections.filter(s=>s.kind===kind)){
     const article=node(kind==='natal'?'article':'details','','reading-entry');
     article.append(node(kind==='natal'?'h4':'summary',section.title));
-    article.append(node('p',section.evidence.join(' · '),'reading-evidence'));
+    const evidence=node('details','','reading-evidence');evidence.append(node('summary','Ver los datos de esta interpretación'),node('p',section.evidence.join(' · ')));article.append(evidence);
     for(const paragraph of section.paragraphs)article.append(node('p',paragraph));
     blocks.push(article);
    }
@@ -88,14 +89,16 @@ function render(r){
  $('#pdf-status').textContent='';
  $('#reading').replaceChildren(...[...glossary,...Object.entries(reading?.glossary||{})].map(([title,copy])=>{const d=node('details');d.append(node('summary',title),node('p',copy));return d;}));
 $('#context').textContent=r.birth.local_datetime.replace('T',' · ')+' · '+r.birth.timezone+' · Casas: '+r.conventions.houses;
- $('#highlights').replaceChildren(...[['Sol',r.planets[0]],['Luna',r.planets[1]],['Ascendente',r.ascendant]].map(([label,p])=>{const d=node('div','','highlight');d.append(node('small',label),node('strong',p.sign),node('span',p.degree_in_sign.toFixed(2)+'°'));return d;}));
+ $('#highlights').replaceChildren(...[['Sol',r.planets[0]],['Luna',r.planets[1]],['Ascendente',r.ascendant]].map(([label,p])=>{const d=node('div','','highlight');d.append(node('small',label),node('strong',p.sign));return d;}));
  rows('#positions',r.planets.map((p,i)=>[(i+1)+'. '+p.name+(p.retrograde?' · R':''),fmt(p)+' · Casa '+p.house]));
  rows('#aspects',(r.aspects||[]).map(a=>[a.name_a+' / '+a.name_b,a.name+' · orbe '+a.orb_deg.toFixed(2)+'°']));
  $('#aspect-legend').replaceChildren(...(r.aspect_rules||[]).map(a=>{const p=node('p',a.name+' '+a.angle+'° · margen '+a.orb+'°');p.style.borderLeft='3px '+(a.dash?'dashed':'solid')+' '+a.color;p.style.paddingLeft='12px';return p;}));
  rows('#houses',r.cusps.map(p=>['Casa '+p.house,fmt(p)]));
  $('#method').textContent=r.conventions.provider+' · '+r.conventions.backend+' · Zodiaco tropical. '+r.conventions.time+'. '+r.conventions.validation+'.';wheel(r);$('#result').hidden=false;$('#result').focus();}
 form.addEventListener('input',()=>{calculationRevision++;current=null;$('#result').hidden=true;$('#status').textContent='';});
-form.onsubmit=async e=>{e.preventDefault();if(typeof AbortController!=='function'||typeof fetch!=='function'){$('#status').textContent='Este navegador no permite completar la conexión. Abre la página en una versión actualizada de Safari o Chrome.';return;}if(!selectedPlace){$('#status').textContent='Busca tu ciudad y selecciona el resultado con el país correcto antes de continuar.';$('#city').focus();return;}const revision=++calculationRevision; const f=new FormData(form),button=form.querySelector('[type=submit]');current=null;$('#result').hidden=true;button.disabled=true;$('#status').textContent='Calculando…';
+form.onsubmit=async e=>{e.preventDefault();if(typeof AbortController!=='function'||typeof fetch!=='function'){$('#status').textContent='Este navegador no permite completar la conexión. Abre la página en una versión actualizada de Safari o Chrome.';return;}if(!selectedPlace){$('#status').textContent='Busca tu ciudad y selecciona el resultado con el país correcto antes de continuar.';$('#city').focus();return;}const f=new FormData(form);const [year,month,day]=String(f.get('date')).split('-');const [hour,minute]=String(f.get('time')).split(':');const h=Number(hour);const readableTime=(h%12||12)+':'+minute+' '+(h<12?'de la mañana':h<19?'de la tarde':'de la noche')+' ('+hour+':'+minute+' h)';
+ if(!window.confirm('Antes de calcular, comprueba tus datos de nacimiento:\n\n'+day+'/'+month+'/'+year+' · '+readableTime+'\n'+selectedPlace.label+'\n\nLa hora y el lugar influyen en el ascendente. Pulsa Aceptar para preparar tu lectura o Cancelar para corregirlos.'))return;
+ const revision=++calculationRevision;const button=form.querySelector('[type=submit]');current=null;$('#result').hidden=true;button.disabled=true;$('#status').textContent='Calculando…';
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),180000);
  const body={local_datetime:f.get('date')+'T'+f.get('time'),timezone:selectedPlace.timezone,latitude:selectedPlace.latitude,longitude:selectedPlace.longitude,time_accuracy:'recorded',house_system:f.get('house_system')};if(f.get('fold')!=='')body.fold=Number(f.get('fold'));
  try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(r.field==='fold'){$('#clock-details').hidden=false;$('#clock-details').open=true;}if(field&&field.type!=='hidden')field.focus();throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El servicio tardó demasiado. Tus datos siguen aquí; pulsa Preparar mi lectura para reintentar.':error.message==='Failed to fetch'?'No pudimos conectar con el servicio. Tus datos siguen aquí; vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
@@ -127,7 +130,7 @@ $('#search-city').onclick=async()=>{
   $('#more-cities').hidden=cityLimit>=100||(data.results||[]).length<cityLimit;const places=(data.results||[]).filter(p=>p.country_code===country.code&&p.timezone&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
   $('#city-status').textContent=places.length?'Elige tu ciudad y comprueba la región.':'No encontramos esa ciudad. Prueba su nombre sin el país o una localidad cercana que puedas identificar.';
 
-  for(const p of places){const label=[p.name,p.admin1,p.country].filter(Boolean).join(', '),b=node('button',label,'secondary city-choice');b.type='button';b.onclick=()=>{$('#more-cities').hidden=true;selectedPlace={timezone:p.timezone,latitude:p.latitude,longitude:p.longitude};calculationRevision++;current=null;$('#result').hidden=true;for(const key of ['latitude','longitude','timezone'])form.elements[key].value=p[key];$('#chosen-city').textContent='Lugar de nacimiento: '+label;$('#city-results').replaceChildren();$('#city-status').textContent='Ubicación confirmada. Ya puedes preparar tu lectura.';};$('#city-results').append(b);}
+  for(const p of places){const label=[p.name,p.admin1,p.country].filter(Boolean).join(', '),b=node('button',label,'secondary city-choice');b.type='button';b.onclick=()=>{$('#more-cities').hidden=true;selectedPlace={label,timezone:p.timezone,latitude:p.latitude,longitude:p.longitude};calculationRevision++;current=null;$('#result').hidden=true;for(const key of ['latitude','longitude','timezone'])form.elements[key].value=p[key];$('#chosen-city').textContent='Lugar de nacimiento: '+label;$('#city-results').replaceChildren();$('#city-status').textContent='Ubicación confirmada. Ya puedes preparar tu lectura.';};$('#city-results').append(b);}
  }catch(error){if(revision===searchRevision){$('#city-status').textContent='No pudimos conectar con el buscador. Conservamos lo que escribiste. Pulsa Buscar ciudad para reintentar.';}}
  finally{clearTimeout(timer);}
 };
@@ -135,7 +138,7 @@ $('#city').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault()
 
 $('#clear-data').onclick=()=>{
  calculationRevision++;searchRevision++;current=null;selectedPlace=null;form.reset();$('#clock-details').hidden=true;
- for(const id of ['wheel','positions','houses','reading','symbolic-reading','reading-closing','aspects','aspect-legend','highlights','city-results','review-cards'])$('#'+id).replaceChildren();
+ for(const id of ['wheel','positions','houses','reading','symbolic-reading','quick-reading','reading-closing','aspects','aspect-legend','highlights','city-results','review-cards'])$('#'+id).replaceChildren();
  for(const id of ['context','method','chosen-city','city-status','status','pdf-status'])$('#'+id).textContent='';
  $('#result').hidden=true;
  $('#status').textContent='Carta y formulario borrados de esta pantalla. Los archivos que hayas descargado permanecen en tu dispositivo.';

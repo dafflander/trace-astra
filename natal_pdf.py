@@ -48,25 +48,22 @@ def create_pdf(result, *, synthetic=False, periods=None):
         if cursor-h-keep<70 and items:
             flush()
         items.append((paragraph,cursor-h));cursor-=h+10
-    guide=reading['guide']
-    begin(guide['title']);flow(guide['intro'])
-    for key,title,copy in guide['items']:
-        if key=='timeline-panel' and not periods:continue
-        flow(title,'heading',45);flow(copy)
-    flow('Esta copia reúne tu lectura. La información de uso y privacidad está al final; no necesitas responder preguntas para leerla.')
-    flow(guide['last'],'closing')
     overview=reading['overview'];elements=overview['elements']
-    begin(elements['title'])
-    flow(reading['notice'],'notice')
-    for name,count in elements['counts'].items():
-        flow(name+' · '+str(count)+' de '+str(elements['total']),'heading',100)
-        flow(elements['descriptions'][name])
-        flow(', '.join(elements['members'][name]) or 'Sin cuerpos en este elemento.','evidence')
-    for paragraph in elements['paragraphs']:flow(paragraph)
-    begin(overview['title'])
+    begin('Tu carta y tu recorrido')
+    flow(overview['title'],'heading',45)
     for paragraph in overview['paragraphs']:flow(paragraph)
+    flow(reading['notice'],'notice')
+    flow('En las páginas siguientes encontrarás tus elementos, la lectura de tu carta y las afinidades con otros signos. Después, una mirada para seguir y los períodos disponibles del pasado y del futuro. El mapa, los grados y el método quedan en el anexo para consultarlos cuando quieras.')
+    flush()
+    begin(elements['title'])
+    for paragraph in elements['paragraphs']:flow(paragraph)
+    for name,count in elements['counts'].items():
+        flow(name+' · '+str(count)+' de '+str(elements['total']),'heading',45)
+        flow(elements['descriptions'][name])
+    evidence_notes=[]
     groups=[('compatibility','Tu compatibilidad con otros signos'),('natal','Tu lectura natal'),('aspect','Relaciones entre posiciones'),('bazi','Tu nacimiento en BaZi')]
     for kind,heading in groups:
+        if kind in ('aspect','bazi'):continue
         begin(heading)
         if kind=="natal":
             flow(reading["notice"],"notice");flow(reading["introduction"])
@@ -84,7 +81,7 @@ def create_pdf(result, *, synthetic=False, periods=None):
                     block_height+=p.wrap(499,800)[1]+10
                 if block_height<=670 and cursor-block_height<70 and items:flush()
             flow(section['title'],'heading',115)
-            flow(' · '.join(section['evidence']).replace('↔','/'),'evidence',65)
+            evidence_notes.append((section['title'],' · '.join(section['evidence']).replace('↔','/')))
             for paragraph in section['paragraphs']:flow(paragraph)
     begin(reading['closing']['title'])
     closing_text=closing_paragraphs(reading,periods)
@@ -108,12 +105,30 @@ def create_pdf(result, *, synthetic=False, periods=None):
             flow('No cuenta: '+' '.join(card['does_not_count']))
             flow('Evaluable desde '+moment(card['evaluate_after_utc'])+'. Las respuestas personales no se incluyen en este PDF.','notice')
             ev=card['detail']['evidence']
-            flow(f"Origen: {body_names[ev['transit_body']]} respecto de {body_names[ev['natal_body']]}, {ev['aspect_deg']}°, orbe mínimo {ev['minimum_orb_deg']:.3f}°. Regla {card['detail']['rule']['id']}.",'evidence')
+            evidence_notes.append((card['title'],f"Origen: {body_names[ev['transit_body']]} respecto de {body_names[ev['natal_body']]}, {ev['aspect_deg']}°, orbe mínimo {ev['minimum_orb_deg']:.3f}°. Regla {card['detail']['rule']['id']}."))
+    flush()
+    main_page_count=len(reading_pages)
+    begin('Anexo · relaciones y otros calendarios')
+    for section in reading['sections']:
+        if section['kind'] not in ('aspect','bazi'):continue
+        flow(section['title'],'heading',70)
+        flow(' · '.join(section['evidence']).replace('↔','/'),'evidence',30)
+        for paragraph in section['paragraphs']:flow(paragraph)
+    for period in periods or []:
+        if period['status']!='ready':continue
+        timeline=period['timeline']
+        if timeline.get('long_term_context'):
+            begin('Otros calendarios · '+('pasado' if period['kind']=='past' else 'futuro'))
         for context in timeline.get('long_term_context',[]):
             flow('BaZi · contexto anual' if context['system']=='bazi' else 'Jyotisha · contexto de largo plazo','heading',330)
             flow(moment(context['start_utc'])+' a '+moment(context['end_utc']),'evidence',70)
             for paragraph in context['rule'].get('reading',[context['rule']['text']]):flow(paragraph)
             flow('Fechas originales conservadas. No se suma como confirmación independiente ni se puntúa una ventana recortada.','notice')
+    begin('Anexo · datos de las interpretaciones')
+    for name in elements['counts']:
+        flow(name+': '+(', '.join(elements['members'][name]) or 'Sin cuerpos en este elemento.'))
+    for title,evidence in evidence_notes:
+        flow(title+': '+evidence,'evidence')
     begin('Cómo leer los datos')
     for term,definition in reading['glossary'].items():flow(term+': '+definition)
     flow('Lectura TraceAstra '+reading['version']+'. Las afinidades son asociaciones editoriales; no son aspectos entre dos cartas. Solo se incluyen los períodos disponibles solicitados al descargar. Las respuestas personales permanecen en la pestaña y en la copia HTML, no se envían para crear este PDF.','notice')
@@ -135,7 +150,7 @@ def create_pdf(result, *, synthetic=False, periods=None):
         c.setFillColor(PAPER);c.rect(0,0,width,height,fill=1,stroke=0)
         text(48,799,'TraceAstra',11,color=BLUE)
         if compact:
-            text(48,770,title,15,'Times-Roman',BLUE)
+            text(165,799,title,10,color=BLUE)
         elif number==1:
             text(48,712,title,32,'Times-Roman')
         else:
@@ -143,7 +158,12 @@ def create_pdf(result, *, synthetic=False, periods=None):
         text(48,34,'Copia personal'+(' · EJEMPLO FICTICIO' if synthetic else '')+' · Sin IA',9)
         text(width-76,34,str(number)+' / '+str(total),9)
     def degree(p):return p['sign']+' '+format(p['degree_in_sign'],'.2f')+'°'
-    page(1,'','Tu carta y tu recorrido')
+    number=0
+    for section_title,page_items in reading_pages[:main_page_count]:
+        number+=1;page(number,'',section_title,compact=True)
+        for paragraph,y in page_items:paragraph.drawOn(c,48,y)
+        c.showPage()
+    page(number+1,'','Anexo · el mapa de tu carta',compact=True)
     birth=result['birth']
     para(birth['local_datetime'].replace('T',' · ')+' · '+birth['timezone'],48,679,size=10)
     para('Latitud '+str(birth['latitude'])+' · Longitud '+str(birth['longitude'])+' · Casas: '+result['conventions']['houses'],48,657,size=10)
@@ -186,9 +206,9 @@ def create_pdf(result, *, synthetic=False, periods=None):
         x,y=xy(deg,216);text(x-10,y-3,label,9,color=BLUE)
     for i,(label,p) in enumerate([('SOL',result['planets'][0]),('LUNA',result['planets'][1]),('ASCENDENTE',result['ascendant'])]):
         x=48+i*168;text(x,147,label,9,color=BLUE);text(x,121,p['sign'],21,'Times-Roman')
-    para('Los números identifican los cuerpos de la tabla de la página 2. ASC = ascendente; MC = medio cielo. Las líneas conectan posiciones: no indican causas ni predicen hechos.',48,88,size=9)
+    para('Los números identifican los cuerpos de la tabla de la página siguiente. ASC = ascendente; MC = medio cielo. Las líneas conectan posiciones: no indican causas ni predicen hechos.',48,88,size=9)
     c.showPage()
-    page(2,'LAS POSICIONES Y EL MÉTODO','El mapa en detalle')
+    page(number+2,'LAS POSICIONES Y EL MÉTODO','El mapa en detalle',compact=True)
     y=675
     for i,p in enumerate(result['planets']):
         text(48,y,str(i+1)+'. '+p['name']+(' · R' if p['retrograde'] else ''),11)
@@ -202,7 +222,7 @@ def create_pdf(result, *, synthetic=False, periods=None):
     para(result['conventions']['provider']+' · '+result['conventions']['backend']+'. '+result['conventions']['time']+'. '+result['conventions']['validation']+'.',48,128,size=9)
     para('Motor: '+result['version']+' · Lectura TraceAstra '+reading['version']+'. Datos de nacimiento incluidos: conserva esta copia en un lugar privado.',48,79,size=9)
     c.showPage()
-    page(3,'UNA GUÍA PARA EXPLORAR','Los elementos, en palabras simples')
+    page(number+3,'UNA GUÍA PARA EXPLORAR','Los elementos, en palabras simples',compact=True)
     para('Estos son los temas que la astrología asocia con cada elemento. Son asociaciones culturales, no conclusiones del cálculo ni descripciones comprobadas de tu personalidad.',48,675,size=10)
     y=616
     for label,copy,question in GUIDE:
@@ -210,7 +230,7 @@ def create_pdf(result, *, synthetic=False, periods=None):
         y=para(copy,48,y-12,size=10)
         y=para(question,48,y-7,size=10,color=BLUE)-25
     for chunk in range(max(1,(len(aspects)+19)//20)):
-        c.showPage();page(4+chunk,'CONEXIONES ENTRE PLANETAS','Los aspectos mayores')
+        c.showPage();page(number+4+chunk,'CONEXIONES ENTRE PLANETAS','Los aspectos mayores',compact=True)
         para('El orbe mide cuánto se aparta la separación del ángulo exacto. No expresa probabilidad ni fuerza predictiva. Se calculan pares de los diez cuerpos, sin aspectos a los ángulos.',48,677,size=10)
         y=610
         for a in aspects[chunk*20:(chunk+1)*20]:
@@ -220,8 +240,8 @@ def create_pdf(result, *, synthetic=False, periods=None):
             text(416,y,'Orbe '+format(a['orb_deg'],'.2f')+'°',10);y-=22
         if not aspects:para('No se encontraron aspectos dentro de los márgenes elegidos.',48,y)
         para('Márgenes: conjunción 8°, sextil 4°, cuadratura 6°, trígono 6°, oposición 8°. Convención editorial TRACE 0.1. Conjunción: violeta punteado; sextil: verde punteado; cuadratura: rojo discontinuo; trígono: azul continuo; oposición: rojo continuo.',48,128,size=9)
-    for index,(section_title,items) in enumerate(reading_pages):
-        c.showPage();page(base_total+index+1,'',section_title,compact=True)
+    for index,(section_title,items) in enumerate(reading_pages[main_page_count:]):
+        c.showPage();page(number+base_total+index+1,'',section_title,compact=True)
         for paragraph,y in items:paragraph.drawOn(c,48,y)
     c.save()
     return stream.getvalue()
