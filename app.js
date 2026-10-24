@@ -65,10 +65,10 @@ function render(r){
   blocks.push(node('p',reading.notice,'note'),node('p',reading.introduction));$('#forecast-notice').replaceChildren(node('h3',reading.forecast_title),...reading.forecast_notice.map(t=>node('p',t)));
   if(reading.overview){
    const overview=reading.overview,e=overview.elements;
-   $('#quick-reading').replaceChildren(node('h3',overview.title),...overview.paragraphs.map(t=>node('p',t)),node('p',reading.notice,'note'));
-   blocks.push(heading(e.title,'elements'));
+   $('#quick-reading').replaceChildren(node('h3','Una primera mirada'),...overview.paragraphs.map(t=>node('p',t)),node('p',reading.notice,'note'));
+   blocks.push(heading(e.title,'elements'),node('p','Contamos diez cuerpos: el Sol, la Luna y ocho planetas. «3 de 10» significa que tres están en signos de ese elemento. No es una nota ni un porcentaje de tu personalidad. El ascendente no se incluye.','note'));
    const grid=node('div','','element-grid');
-   for(const [name,count] of Object.entries(e.counts)){const item=node('article','','element-card');item.append(node('h4',name+' · '+count+' de '+e.total),node('p',e.descriptions[name]),node('p',e.members[name].join(', ')||'Sin cuerpos en este elemento.','note'));grid.append(item);}
+   for(const [name,count] of Object.entries(e.counts)){const item=node('article','','element-card');item.append(node('h4',name+' · '+count+' de los '+e.total+' cuerpos'),node('p',e.descriptions[name]),node('p',e.members[name].join(', ')||'Sin cuerpos en este elemento.','note'));grid.append(item);}
    blocks.push(grid,...e.paragraphs.map(t=>node('p',t)));
   }
   const groups=[['compatibility','Tu compatibilidad con otros signos'],['natal','Tu carta, en profundidad'],['aspect','Cómo se relacionan las posiciones'],['bazi','Otro calendario para explorar']];
@@ -89,7 +89,7 @@ function render(r){
  $('#pdf-status').textContent='';
  $('#reading').replaceChildren(...[...glossary,...Object.entries(reading?.glossary||{})].map(([title,copy])=>{const d=node('details');d.append(node('summary',title),node('p',copy));return d;}));
 $('#context').textContent=r.birth.local_datetime.replace('T',' · ')+' · '+r.birth.timezone+' · Casas: '+r.conventions.houses;
- $('#highlights').replaceChildren(...[['Sol',r.planets[0]],['Luna',r.planets[1]],['Ascendente',r.ascendant]].map(([label,p])=>{const d=node('div','','highlight');d.append(node('small',label),node('strong',p.sign));return d;}));
+ $('#highlights').replaceChildren(...[['Sol',r.planets[0]],['Luna',r.planets[1]],['Ascendente',r.ascendant]].map(([label,p])=>{const d=node('article','','highlight'),icon=node('span',label==='Sol'?'☼':label==='Luna'?'☾':'↗','highlight-icon');icon.setAttribute('aria-hidden','true');d.dataset.body=label;const content=node('div','','highlight-copy');const meanings={'Sol':'Identidad y expresión','Luna':'Emociones y necesidades','Ascendente':'Tu manera de presentarte'};const themes={'Aries':'Iniciativa para dar el primer paso.','Tauro':'Constancia para cuidar y sostener lo valioso.','Géminis':'Curiosidad para aprender y conectar ideas.','Cáncer':'Cuidado y cercanía para crear vínculos.','Leo':'Creatividad para expresar algo propio.','Virgo':'Atención al detalle para mejorar lo cotidiano.','Libra':'Diálogo para buscar acuerdos.','Escorpio':'Profundidad para explorar lo importante.','Sagitario':'Apertura para ampliar perspectivas.','Capricornio':'Paciencia para construir paso a paso.','Acuario':'Autonomía para imaginar otras posibilidades.','Piscis':'Sensibilidad e imaginación para explorar lo que sientes.'};content.append(node('strong',label+' · '+p.sign),node('small',meanings[label]),node('p',themes[p.sign]||''));d.append(icon,content);return d;}));
  rows('#positions',r.planets.map((p,i)=>[(i+1)+'. '+p.name+(p.retrograde?' · R':''),fmt(p)+' · Casa '+p.house]));
  rows('#aspects',(r.aspects||[]).map(a=>[a.name_a+' / '+a.name_b,a.name+' · orbe '+a.orb_deg.toFixed(2)+'°']));
  $('#aspect-legend').replaceChildren(...(r.aspect_rules||[]).map(a=>{const p=node('p',a.name+' '+a.angle+'° · margen '+a.orb+'°');p.style.borderLeft='3px '+(a.dash?'dashed':'solid')+' '+a.color;p.style.paddingLeft='12px';return p;}));

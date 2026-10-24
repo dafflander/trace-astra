@@ -58,7 +58,7 @@ def create_pdf(result, *, synthetic=False, periods=None):
     begin(elements['title'])
     for paragraph in elements['paragraphs']:flow(paragraph)
     for name,count in elements['counts'].items():
-        flow(name+' · '+str(count)+' de '+str(elements['total']),'heading',45)
+        flow(name+' · '+str(count)+' de los '+str(elements['total'])+' cuerpos','heading',45)
         flow(elements['descriptions'][name])
     evidence_notes=[]
     groups=[('compatibility','Tu compatibilidad con otros signos'),('natal','Tu lectura natal'),('aspect','Relaciones entre posiciones'),('bazi','Tu nacimiento en BaZi')]

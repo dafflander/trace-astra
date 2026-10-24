@@ -25,11 +25,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/healthz':
             return self.respond(200,b'{"status":"ok"}')
-        files={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/timeline.js':'timeline.js','/service.js':'service.js','/comparison.js':'comparison.js'}
+        files={'/galaxy.jpg':'galaxy.jpg','/cosmos.svg':'cosmos.svg','/compass.svg':'compass.svg','/':'index.html','/app.js':'app.js','/style.css':'style.css','/timeline.js':'timeline.js','/service.js':'service.js','/comparison.js':'comparison.js'}
         name=files.get(self.path)
         if not name:
             return self.respond(404,b'{}')
-        kinds={'html':'text/html','js':'text/javascript','css':'text/css'}
+        kinds={'jpg':'image/jpeg','svg':'image/svg+xml','html':'text/html','js':'text/javascript','css':'text/css'}
         self.respond(200,(ROOT/name).read_bytes(),kinds[name.split('.')[-1]])
     def do_POST(self):
         if self.path not in ('/api/natal','/api/natal/pdf','/api/timeline','/api/comparison','/api/comparison/pdf'):
