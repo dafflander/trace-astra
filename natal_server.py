@@ -25,7 +25,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/healthz':
             return self.respond(200,b'{"status":"ok"}')
-        files={'/galaxy.jpg':'galaxy.jpg','/cosmos.svg':'cosmos.svg','/compass.svg':'compass.svg','/':'index.html','/app.js':'app.js','/style.css':'style.css','/timeline.js':'timeline.js','/service.js':'service.js','/comparison.js':'comparison.js'}
+        files={'/50gallinaslogo-light.svg':'50gallinaslogo-light.svg','/galaxy.jpg':'galaxy.jpg','/cosmos.svg':'cosmos.svg','/compass.svg':'compass.svg','/':'index.html','/app.js':'app.js','/style.css':'style.css','/timeline.js':'timeline.js','/service.js':'service.js','/comparison.js':'comparison.js'}
         name=files.get(self.path)
         if not name:
             return self.respond(404,b'{}')
