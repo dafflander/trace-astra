@@ -32,7 +32,7 @@ class Handler(BaseHTTPRequestHandler):
         kinds={'jpg':'image/jpeg','svg':'image/svg+xml','html':'text/html','js':'text/javascript','css':'text/css'}
         self.respond(200,(ROOT/name).read_bytes(),kinds[name.split('.')[-1]])
     def do_POST(self):
-        if self.path not in ('/api/natal','/api/natal/pdf','/api/timeline','/api/comparison','/api/comparison/pdf'):
+        if self.path not in ('/api/weekly','/api/natal','/api/natal/pdf','/api/timeline','/api/comparison','/api/comparison/pdf'):
             return self.respond(404,b'{}')
         if self.headers.get('Origin') not in self.allowed_origins:
             return self.respond(403,b'{}')
@@ -53,6 +53,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self.respond(200,create_comparison_pdf(comparison),'application/pdf')
                 return self.respond(200,json.dumps(comparison,ensure_ascii=False).encode())
             result=calculate_request(body)
+            if self.path == '/api/weekly':
+                from weekly_reader import calculate_weekly
+                weekly=calculate_weekly(result,body.get('week_timezone','UTC'))
+                return self.respond(200,json.dumps({'chart':result,'weekly':weekly},ensure_ascii=False,allow_nan=False).encode())
             if self.path == '/api/timeline':
                 from research_reading import calculate_research_reading
                 if body.get('mode')=='milestones':

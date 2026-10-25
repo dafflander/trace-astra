@@ -101,7 +101,7 @@ form.onsubmit=async e=>{e.preventDefault();if(typeof AbortController!=='function
  const revision=++calculationRevision;const button=form.querySelector('[type=submit]');current=null;$('#result').hidden=true;button.disabled=true;$('#status').textContent='Calculando…';
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),180000);
  const body={local_datetime:f.get('date')+'T'+f.get('time'),timezone:selectedPlace.timezone,latitude:selectedPlace.latitude,longitude:selectedPlace.longitude,time_accuracy:'recorded',house_system:f.get('house_system')};if(f.get('fold')!=='')body.fold=Number(f.get('fold'));
- try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const response=await traceFetch('/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(r.field==='fold'){$('#clock-details').hidden=false;$('#clock-details').open=true;}if(field&&field.type!=='hidden')field.focus();throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;current=r;render(r);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El servicio tardó demasiado. Tus datos siguen aquí; pulsa Preparar mi lectura para reintentar.':error.message==='Failed to fetch'?'No pudimos conectar con el servicio. Tus datos siguen aquí; vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
+ try{if(location.protocol==='file:')throw Error('Para calcular una carta nueva, abre el servicio local en http://127.0.0.1:8766/. Esta vista de archivo no ejecuta el motor.');const weeklyMode=document.querySelector('[name=explore]:checked').value==='weekly';if(weeklyMode)body.week_timezone=weeklyZone;const response=await traceFetch(weeklyMode?'/api/weekly':'/api/natal',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const r=await response.json();if(revision!==calculationRevision)return;if(!response.ok){const field=form.elements[r.field];if(r.field==='fold'){$('#clock-details').hidden=false;$('#clock-details').open=true;}if(field&&field.type!=='hidden')field.focus();throw Error(r.error||'No pudimos calcular esta carta.');}if(revision!==calculationRevision)return;if(weeklyMode){current=r.chart;renderWeekly(r.weekly);$('#status').textContent='Tu lectura semanal está lista.';}else{current=r;render(r);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';}}catch(error){if(revision===calculationRevision)$('#status').textContent=error.name==='AbortError'?'El servicio tardó demasiado. Tus datos siguen aquí; pulsa Preparar mi lectura para reintentar.':error.message==='Failed to fetch'?'No pudimos conectar con el servicio. Tus datos siguen aquí; vuelve a intentarlo.':error.message;}finally{clearTimeout(timer);button.disabled=false;}};
 $('#download').onclick=()=>{if(!current)return;const url=URL.createObjectURL(new Blob([JSON.stringify({chart:current,periods:window.traceReadingData?.()||[]},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trace-carta-natal.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
 
@@ -190,3 +190,26 @@ $('#download-pdf').onclick=async()=>{
  }catch(error){if(revision===calculationRevision)$('#pdf-status').textContent=error.name==='AbortError'?'La generación tardó demasiado. Vuelve a intentarlo.':error.message;}
  finally{clearTimeout(timer);window.tracePdfBusy=false;b.disabled=false;window.dispatchEvent(new Event('trace:timeline-updated'));}
 };
+
+// Weekly beta uses the same birth form, without automatically starting long timelines.
+let weeklyZone='UTC';try{weeklyZone=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';}catch(_){}
+const weeklyBox=$('#weekly-result');
+function hideWeekly(){weeklyBox.hidden=true;weeklyBox.replaceChildren();}
+form.addEventListener('input',hideWeekly);form.addEventListener('submit',hideWeekly);
+$('#clear-data').addEventListener('click',hideWeekly);
+$('#city-results').addEventListener('click',hideWeekly);
+for(const radio of document.querySelectorAll('[name=explore]'))radio.addEventListener('change',()=>{
+ form.dispatchEvent(new Event('input'));hideWeekly();$('#result').hidden=true;
+ const weekly=radio.value==='weekly';$('#comparison-panel').hidden=weekly;
+ $('#week-zone-note').hidden=!weekly;$('#week-zone-note').textContent='Semana de lunes a domingo · Horario de referencia: '+weeklyZone+'. Usamos la zona de este dispositivo; el horario de nacimiento no cambia.';
+ form.querySelector('[type=submit]').textContent=weekly?'Preparar mi semana':'Preparar mi lectura';
+});
+function renderWeekly(w){
+ const date=s=>s.split('-').reverse().join('/');
+ weeklyBox.replaceChildren(node('small','LECTURA SEMANAL · BETA'),node('h2','Esta semana para ti'),node('p',date(w.start)+' — '+date(w.end)+' · '+w.timezone),node('p',w.summary));
+ for(const card of w.cards){const section=node('article','','weekly-card');section.append(node('h3',card.title),node('p',card.text),node('small',card.context),node('h4','Un paso posible'),node('p',card.action),node('h4','Una pregunta para ti'),node('p',card.question));weeklyBox.append(section);}
+ const details=node('details');details.append(node('summary','¿En qué se basa esta lectura?'),node('p',w.method));
+ for(const c of w.cards)details.append(node('p',c.evidence+' · Orbe '+c.orb_deg.toFixed(2)+'° · Muestra: '+new Date(c.sample_utc).toLocaleString('es',{timeZone:w.timezone})+' · '+w.timezone));
+ details.append(node('small','Biblioteca '+w.version));weeklyBox.append(details,node('p',w.notice,'note'));
+ const open=node('button','Ver mi carta natal completa →');open.type='button';open.onclick=()=>{if(!current)return;hideWeekly();document.querySelector('[name=explore][value=natal]').checked=true;$('#comparison-panel').hidden=false;$('#week-zone-note').hidden=true;form.querySelector('[type=submit]').textContent='Preparar mi lectura';render(current);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';};weeklyBox.append(open);weeklyBox.hidden=false;weeklyBox.focus();weeklyBox.scrollIntoView({behavior:'smooth',block:'start'});
+}
