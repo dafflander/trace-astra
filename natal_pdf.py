@@ -140,7 +140,7 @@ def create_pdf(result, *, synthetic=False, periods=None):
     flow('Información completa: '+LEGAL_URL,'evidence',link=LEGAL_URL)
     flush()
     base_total=3+max(1,(len(aspects)+19)//20)
-    total=base_total+len(reading_pages)
+    total=base_total+len(reading_pages)+1
     def text(x,y,value,size=11,font='Helvetica',color=INK):
         c.setFillColor(color);c.setFont(font,size);c.drawString(x,y,str(value))
     def para(value,x,y,w=499,size=11,color=INK):
@@ -149,6 +149,7 @@ def create_pdf(result, *, synthetic=False, periods=None):
     def page(number,kicker,title,compact=False):
         c.setFillColor(PAPER);c.rect(0,0,width,height,fill=1,stroke=0)
         text(48,799,'TraceAstra',11,color=BLUE)
+        c.setStrokeColor(HexColor('#cbd1d3'));c.setLineWidth(.5);c.line(48,782,width-48,782)
         if compact:
             text(165,799,title,10,color=BLUE)
         elif number==1:
@@ -158,7 +159,9 @@ def create_pdf(result, *, synthetic=False, periods=None):
         text(48,34,'Copia personal'+(' · EJEMPLO FICTICIO' if synthetic else '')+' · Sin IA',9)
         text(width-76,34,str(number)+' / '+str(total),9)
     def degree(p):return p['sign']+' '+format(p['degree_in_sign'],'.2f')+'°'
-    number=0
+    from pdf_cover import draw_cover
+    draw_cover(c,result,total,synthetic)
+    number=1
     for section_title,page_items in reading_pages[:main_page_count]:
         number+=1;page(number,'',section_title,compact=True)
         for paragraph,y in page_items:paragraph.drawOn(c,48,y)
