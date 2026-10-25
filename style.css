@@ -40,4 +40,20 @@ header .brand{font:30px/1.1 Georgia,serif;letter-spacing:-.03em;display:flex;ali
 
 .initiative-footer{margin:32px auto 0;padding-top:24px;border-top:1px solid #d8d7d2;text-align:center}.initiative-footer p{font-size:13px;margin:0 0 14px}.initiative-footer strong{font-weight:500}.initiative-footer img{display:block;width:80px;height:auto;margin:0 auto 12px}
 
-#explore-choice{border:0;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:16px}#explore-choice legend{font-size:1.5rem;margin-bottom:18px}#explore-choice label{display:block;border:1px solid #a4b4bf;border-radius:12px;padding:18px;cursor:pointer}#explore-choice input{width:22px;height:22px;display:inline-block;vertical-align:middle;margin:0 8px 8px 0}#explore-choice span{display:block;margin-top:8px;font-size:.95rem}#explore-choice label:has(input:checked){background:#edf1f3;border-color:#244e70}.weekly-card{padding:16px 0;border-top:1px solid #c2c9cc}.weekly-card h4{margin-bottom:6px}#weekly-result{scroll-margin-top:20px}@media(max-width:600px){#explore-choice{grid-template-columns:1fr}}
+/* Whole-card native radio controls: keyboard accessible, visible focus, no JS styling. */
+#explore-choice{border:0;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#explore-choice legend{font:clamp(23px,3vw,30px)/1.2 Georgia,serif;margin-bottom:24px;letter-spacing:-.02em}
+#explore-choice .explore-option{position:relative;margin:0;cursor:pointer;min-width:0}
+#explore-choice input{position:absolute;opacity:0;width:1px;height:1px;min-height:0;padding:0;margin:0}
+.choice-card{position:relative;display:flex;align-items:center;gap:17px;padding:24px 42px 24px 22px;height:100%;border:1px solid #d8d7d2;border-radius:14px;background:#fff6;transition:background .15s,border-color .15s}
+.choice-icon{display:block;flex:0 0 43px;color:#627f93}.choice-icon svg{width:43px;height:43px}
+.choice-copy{display:block;min-width:0}.choice-copy strong{font:22px/1.2 Georgia,serif;font-weight:400;color:#292d32}.choice-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.choice-description{display:block;font-size:14px;line-height:1.6;color:#626971;margin-top:9px}.choice-beta{display:inline-block;border:1px solid #c3d0da;border-radius:20px;padding:1px 7px;font:10px/1.7 system-ui,sans-serif;letter-spacing:.04em;color:#48677e}
+.choice-check{position:absolute;top:15px;right:15px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;color:transparent;border:1px solid #c5cace;font:12px/1 system-ui,sans-serif}
+#explore-choice input:checked + .choice-card{background:#edf2f5;border-color:#819caf}#explore-choice input:checked + .choice-card .choice-icon{color:#244e70}#explore-choice input:checked + .choice-card .choice-check{background:#244e70;border-color:#244e70;color:#fff}
+#explore-choice input:focus-visible + .choice-card{outline:3px solid #5788ad;outline-offset:4px}@media(hover:hover){.explore-option:hover .choice-card{border-color:#819caf}}
+#week-zone-note{font-size:12px;line-height:1.6;margin:16px 0 0;color:#626971;max-width:65ch}
+.weekly-card{padding:20px 0;border-top:1px solid #d8d7d2}.weekly-card h3{font-size:23px;margin:8px 0 12px}.weekly-card p{margin:0;max-width:70ch}
+#weekly-result{scroll-margin-top:20px}.weekly-headline{font-size:clamp(26px,4vw,36px);max-width:28ch;color:#244e70;margin:28px 0 16px}.weekly-takeaway{border-left:2px solid #819caf;padding:4px 0 4px 18px;margin:12px 0 28px}.weekly-takeaway p{font:22px/1.4 Georgia,serif;margin:8px 0}
+@media(max-width:760px){#explore-choice{grid-template-columns:1fr}.choice-card{padding:20px 38px 20px 18px;gap:14px}.choice-copy strong{font-size:21px}.choice-description{font-size:13px}.choice-icon,.choice-icon svg{width:37px;height:37px}.choice-icon{flex-basis:37px}}
+@media(prefers-reduced-motion:reduce){.choice-card{transition:none}}

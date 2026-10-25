@@ -206,10 +206,11 @@ for(const radio of document.querySelectorAll('[name=explore]'))radio.addEventLis
 });
 function renderWeekly(w){
  const date=s=>s.split('-').reverse().join('/');
- weeklyBox.replaceChildren(node('small','LECTURA SEMANAL · BETA'),node('h2','Esta semana para ti'),node('p',date(w.start)+' — '+date(w.end)+' · '+w.timezone),node('p',w.summary));
- for(const card of w.cards){const section=node('article','','weekly-card');section.append(node('h3',card.title),node('p',card.text),node('small',card.context),node('h4','Un paso posible'),node('p',card.action),node('h4','Una pregunta para ti'),node('p',card.question));weeklyBox.append(section);}
+ weeklyBox.replaceChildren(node('small','LECTURA SEMANAL · BETA'),node('h2','Esta semana para ti'),node('p',date(w.start)+' — '+date(w.end)+' · '+w.timezone),node('h3',w.headline||'Tu semana, en pocas palabras','weekly-headline'),node('p',w.summary));
+ for(const card of w.cards){const section=node('article','','weekly-card');section.append(node('h3',card.title),node('p',card.text));weeklyBox.append(section);}
+ if(w.cards.length){const takeaway=node('div','','weekly-takeaway');takeaway.append(node('small','PARA LLEVARTE'),node('p',w.cards[0].question));weeklyBox.append(takeaway);}
  const details=node('details');details.append(node('summary','¿En qué se basa esta lectura?'),node('p',w.method));
- for(const c of w.cards)details.append(node('p',c.evidence+' · Orbe '+c.orb_deg.toFixed(2)+'° · Muestra: '+new Date(c.sample_utc).toLocaleString('es',{timeZone:w.timezone})+' · '+w.timezone));
+ for(const c of w.cards)details.append(node('p',c.evidence+' · Orbe '+c.orb_deg.toFixed(2)+'° · Muestra: '+new Date(c.sample_utc).toLocaleString('es',{timeZone:w.timezone})+' · '+w.timezone+'. '+(c.aspect_note||'')+' '+c.context));
  details.append(node('small','Biblioteca '+w.version));weeklyBox.append(details,node('p',w.notice,'note'));
  const open=node('button','Ver mi carta natal completa →');open.type='button';open.onclick=()=>{if(!current)return;hideWeekly();document.querySelector('[name=explore][value=natal]').checked=true;$('#comparison-panel').hidden=false;$('#week-zone-note').hidden=true;form.querySelector('[type=submit]').textContent='Preparar mi lectura';render(current);window.dispatchEvent(new Event('trace:chart-ready'));$('#status').textContent='Tu carta está lista. Estamos completando los períodos de tu lectura.';};weeklyBox.append(open);weeklyBox.hidden=false;weeklyBox.focus();weeklyBox.scrollIntoView({behavior:'smooth',block:'start'});
 }

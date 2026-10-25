@@ -7,7 +7,7 @@ import hashlib
 import json
 from engine import position, separation
 
-VERSION='weekly-beta-1'
+from weekly_editorial import VERSION, PAIRS, TITLES, OPENINGS, ASPECT_NOTES, TARGET_LABELS, ENDINGS
 # Own editorial vocabulary; every selected passage retains its geometric evidence.
 BODIES={
  'Sun':('Sol','Elegir una prioridad','La expresión personal invita a distinguir qué merece tu atención.','Elige una tarea propia y reserva un momento concreto para ella.'),
@@ -70,11 +70,11 @@ def calculate_weekly(chart,zone='UTC',now=None):
     cards=[]
     for c in chosen:
         name,title,copy,action=BODIES[c['body']];target,theme,question=TARGETS[c['target']];aspect,nuance=ASPECTS[c['angle']]
-        cards.append(dict(title=title,text=copy+' En tu carta, lo relacionamos con '+theme+'. '+nuance,action=action,question=question,
+        cards.append(dict(title=TARGET_LABELS[c['target']],text=PAIRS[c['body']+'.'+c['target']]+' '+ENDINGS[c['angle']],action=action,question=question,aspect_note=ASPECT_NOTES[c['angle']],
           context='Contexto de ritmo lento: puede continuar durante otras semanas.' if c['body'] in SLOW else 'Contacto breve: no describe necesariamente los siete días.' if c['body']=='Moon' else 'Tema seleccionado para esta semana.',
-          evidence=f'{name} en {aspect} a {target} natal',rule_id=f"weekly.{c['body']}.{c['target']}.{c['angle']}.v1",**c))
-    summary=('Esta lectura reúne '+', '.join(TARGETS[c['target']][1] for c in chosen)+'. Puedes usar estos temas para elegir dónde poner atención y dar un paso pequeño, sin convertirlos en una obligación ni esperar que describan todo lo que vivirás.' if chosen else 'Esta semana no encontramos contactos destacados dentro del criterio de esta lectura. Esto no significa que no vaya a pasar nada. Puedes volver a tu carta natal para explorar sus temas generales.')
-    result=dict(version=VERSION,start=start.date().isoformat(),end=(end.date()-timedelta(days=1)).isoformat(),timezone=zone,summary=summary,cards=cards,
+          evidence=f'{name} en {aspect} a {target} natal',rule_id=f"weekly.{c['body']}.{c['target']}.{c['angle']}.v2",**c))
+    summary=OPENINGS[chosen[0]['body']] if chosen else 'Esta semana no encontramos contactos destacados dentro del criterio de esta lectura. Esto no significa que no vaya a pasar nada. Puedes volver a tu carta natal para explorar sus temas generales.'
+    result=dict(version=VERSION,start=start.date().isoformat(),end=(end.date()-timedelta(days=1)).isoformat(),timezone=zone,headline=TITLES[chosen[0]['body']] if chosen else 'Una semana abierta.',summary=summary,cards=cards,
       notice='Una lectura simbólica para explorar, no una certeza. No garantiza acontecimientos ni sustituye asesoramiento médico, psicológico, legal o financiero.',
       method='Beta sin IA. Contactos con orbe de hasta 1°. Muestreo cada hora para la Luna y cada seis horas para los demás cuerpos. La fecha mostrada es la muestra más cercana detectada, no la hora exacta del aspecto ni el inicio o final de su ventana. El muestreo puede omitir contactos breves. Se seleccionan hasta tres temas; el orbe no mide probabilidad ni impacto personal.')
     result['content_id']=hashlib.sha256(json.dumps(result,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
